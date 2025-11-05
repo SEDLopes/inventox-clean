@@ -4,7 +4,7 @@
     "builder": "NIXPACKS"
   },
   "deploy": {
-    "startCommand": "apache2-foreground",
+    "startCommand": "./start.sh",
     "healthcheckPath": "/api/health.php",
     "healthcheckTimeout": 100,
     "restartPolicyType": "ON_FAILURE",
