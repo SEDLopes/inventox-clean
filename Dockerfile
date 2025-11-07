@@ -1,58 +1,39 @@
-# InventoX - PHP Apache image for Fly.io
-# This mirrors Dockerfile.php so Fly can build from root Dockerfile
+# Dockerfile otimizado para DigitalOcean App Platform
+FROM php:8.1-apache
 
-FROM php:8.2-apache
-
-# Instalar dependências do sistema
+# Instalar extensões PHP necessárias
 RUN apt-get update && apt-get install -y \
-    libpng-dev \
-    libjpeg-dev \
-    libfreetype6-dev \
+    libzip-dev \
     zip \
     unzip \
-    git \
-    curl \
-    python3 \
-    python3-pip \
-    && docker-php-ext-configure gd --with-freetype --with-jpeg \
-    && docker-php-ext-install -j$(nproc) pdo pdo_mysql mysqli gd \
-    && apt-get clean && rm -rf /var/lib/apt/lists/*
+    && docker-php-ext-install \
+    pdo \
+    pdo_mysql \
+    zip \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
 
-# Dependências Python para import XLS/XLSX
-RUN pip3 install --no-cache-dir --break-system-packages pandas sqlalchemy pymysql openpyxl python-dotenv
-
-# Habilitar mod_rewrite do Apache
+# Configurar Apache
 RUN a2enmod rewrite
+RUN a2enmod headers
 
-# Configurar PHP
-RUN echo "upload_max_filesize = 10M" >> /usr/local/etc/php/conf.d/uploads.ini \
-    && echo "post_max_size = 10M" >> /usr/local/etc/php/conf.d/uploads.ini \
-    && echo "memory_limit = 256M" >> /usr/local/etc/php/conf.d/uploads.ini \
-    && echo "max_execution_time = 300" >> /usr/local/etc/php/conf.d/uploads.ini
+# Copiar arquivos da aplicação
+COPY frontend/ /var/www/html/
+COPY api/ /var/www/html/api/
+COPY db_init_railway.sql /var/www/html/install.sql
 
-# Configurar sessões PHP
-RUN mkdir -p /var/lib/php/sessions \
-    && chmod 1733 /var/lib/php/sessions \
-    && echo "session.save_path = \"/var/lib/php/sessions\"" >> /usr/local/etc/php/conf.d/sessions.ini \
-    && echo "session.cookie_httponly = 1" >> /usr/local/etc/php/conf.d/sessions.ini \
-    && echo "session.cookie_samesite = \"Lax\"" >> /usr/local/etc/php/conf.d/sessions.ini \
-    && echo "session.use_strict_mode = 1" >> /usr/local/etc/php/conf.d/sessions.ini
+# Configurar permissões
+RUN chown -R www-data:www-data /var/www/html
+RUN chmod -R 755 /var/www/html
 
-# Copiar código
+# Criar pasta de uploads
+RUN mkdir -p /var/www/html/uploads && chown www-data:www-data /var/www/html/uploads
+
+# Configurar Apache para servir do diretório correto
 WORKDIR /var/www/html
-COPY api ./api
-COPY frontend ./frontend
-COPY scripts ./scripts
-COPY logs ./logs
-COPY uploads ./uploads
-COPY db.sql ./db.sql
 
-# Apache DocumentRoot e .htaccess
-RUN sed -ri -e 's!/var/www/html!/var/www/html!g' /etc/apache2/sites-available/000-default.conf \
-    && echo "<Directory /var/www/html>\n    AllowOverride All\n</Directory>" >> /etc/apache2/apache2.conf
-
-# Expor porta
+# Expor porta 80
 EXPOSE 80
 
-# Iniciar Apache
+# Comando para iniciar Apache
 CMD ["apache2-foreground"]
