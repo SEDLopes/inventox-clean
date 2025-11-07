@@ -5,12 +5,12 @@ DirectoryIndex index.php index.html
 # Habilitar mod_rewrite
 RewriteEngine On
 
-# API routes - processar PHP diretamente
-RewriteCond %{REQUEST_URI} ^/api/(.*)$
-RewriteCond %{REQUEST_FILENAME} !-f
+# API routes - processar PHP diretamente (antes de qualquer outra regra)
+RewriteCond %{REQUEST_URI} ^/api/
+RewriteCond %{REQUEST_FILENAME} -f
 RewriteRule ^api/(.*)$ api/$1 [L,QSA]
 
-# Redirecionar root para frontend
+# Redirecionar root para frontend (apenas se não for API)
 RewriteCond %{REQUEST_URI} ^/$
 RewriteRule ^$ /frontend/ [R=301,L]
 
