@@ -17,10 +17,12 @@ RUN apt-get update && apt-get install -y \
 RUN a2enmod rewrite
 RUN a2enmod headers
 
-# Copiar arquivos da aplicação
-COPY frontend/ /var/www/html/
-COPY api/ /var/www/html/api/
-COPY db_init_railway.sql /var/www/html/install.sql
+# Copiar todos os arquivos da aplicação
+COPY . /var/www/html/
+
+# Mover arquivos para estrutura correta
+RUN mv /var/www/html/frontend/* /var/www/html/ 2>/dev/null || true
+RUN mv /var/www/html/api /var/www/html/api 2>/dev/null || true
 
 # Configurar permissões
 RUN chown -R www-data:www-data /var/www/html
