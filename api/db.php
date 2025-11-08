@@ -169,9 +169,42 @@ function requireAuth() {
     $cookieName = session_name();
     $hasSessionCookie = isset($_COOKIE[$cookieName]);
     $requestUri = $_SERVER['REQUEST_URI'] ?? 'unknown';
+    
+    // Verificar token de autenticação no header (fallback se cookies não funcionarem)
+    $authToken = null;
+    $headers = getallheaders();
+    if (isset($headers['Authorization'])) {
+        $authHeader = $headers['Authorization'];
+        if (preg_match('/Bearer\s+(.*)$/i', $authHeader, $matches)) {
+            $authToken = $matches[1];
+        }
+    }
+    
     error_log("requireAuth - Session ID from cookie: " . ($hasSessionCookie ? $_COOKIE[$cookieName] : 'NOT SET') . 
               ", Session ID active: " . session_id() . 
+              ", Auth token in header: " . ($authToken ? 'YES' : 'NO') .
               ", Request URI: " . $requestUri);
+    
+    // Se não há sessão mas há token, tentar validar token
+    if ((!isset($_SESSION['user_id']) || !isset($_SESSION['username'])) && $authToken) {
+        // Buscar sessão pelo token
+        $sessionPath = session_save_path();
+        if (empty($sessionPath)) {
+            $sessionPath = sys_get_temp_dir();
+        }
+        
+        // Tentar encontrar sessão com este token
+        $sessionFiles = glob($sessionPath . '/sess_*');
+        foreach ($sessionFiles as $sessionFile) {
+            $sessionData = file_get_contents($sessionFile);
+            if (strpos($sessionData, 'auth_token|s:' . strlen($authToken) . ':"' . $authToken) !== false) {
+                // Encontrou sessão com este token, carregar dados
+                session_decode($sessionData);
+                error_log("requireAuth - Session restored from token");
+                break;
+            }
+        }
+    }
     
     // Verificar se a sessão está realmente ativa e tem dados
     if (!isset($_SESSION['user_id']) || !isset($_SESSION['username'])) {
@@ -180,17 +213,19 @@ function requireAuth() {
                   ", Session ID: " . session_id() . 
                   ", Cookie name: " . session_name() . 
                   ", Has cookie: " . ($hasSessionCookie ? 'YES' : 'NO') . 
+                  ", Auth token in header: " . ($authToken ? 'YES' : 'NO') .
                   ", User ID: " . ($_SESSION['user_id'] ?? 'not set') . 
                   ", All cookies received: " . print_r($_COOKIE, true) .
                   ", Session data: " . print_r($_SESSION, true) .
                   ", Request URI: " . $requestUri);
         sendJsonResponse([
             'success' => false,
-            'message' => 'Autenticação necessária',
+            'message' => 'Autenticação necessária. Por favor, faça login novamente.',
             'debug' => [
                 'session_id' => session_id(),
                 'has_cookie' => $hasSessionCookie,
                 'cookie_name' => $cookieName,
+                'has_auth_token' => !empty($authToken),
                 'request_uri' => $requestUri
             ]
         ], 401);

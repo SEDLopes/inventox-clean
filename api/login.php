@@ -157,10 +157,15 @@ try {
     // Garantir que a sessão foi escrita (PHP faz isso automaticamente ao finalizar script)
     // Mas vamos verificar que os dados estão realmente na sessão
     
+    // Gerar token de autenticação como fallback
+    $authToken = bin2hex(random_bytes(32));
+    $_SESSION['auth_token'] = $authToken;
+    
     // Log de login para debug
     $cookieName = session_name();
     $sessionId = session_id();
     error_log("Login successful - Session ID: " . $sessionId . 
+              ", Auth Token: " . $authToken . 
               ", Cookie name: " . $cookieName . 
               ", User: {$user['username']}, " .
               "Session has user_id: " . (isset($_SESSION['user_id']) ? 'YES' : 'NO'));
@@ -182,7 +187,8 @@ try {
             'username' => $user['username'],
             'email' => $user['email'],
             'role' => $user['role']
-        ]
+        ],
+        'auth_token' => $authToken // Token como fallback se cookies não funcionarem
     ]);
 
 } catch (PDOException $e) {

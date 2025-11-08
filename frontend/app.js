@@ -6,6 +6,7 @@
 // Base da API: usar o mesmo domínio/host da app (funciona em dev e produção)
 const API_BASE = `${location.origin.replace(/\/$/, '')}/api`;
 let currentSessionId = null;
+let authToken = null; // Token de autenticação como fallback
 let currentItemId = null;
 let currentBarcode = null;
 let currentItemsPage = 1;
@@ -42,16 +43,44 @@ document.addEventListener('DOMContentLoaded', () => {
     }, 100);
 });
 
+// Função helper para fazer fetch com autenticação
+async function authenticatedFetch(url, options = {}) {
+    // Carregar token se disponível
+    if (!authToken) {
+        authToken = sessionStorage.getItem('authToken');
+    }
+    
+    // Adicionar headers de autenticação
+    const headers = options.headers || {};
+    if (authToken) {
+        headers['Authorization'] = `Bearer ${authToken}`;
+    }
+    
+    // Garantir que credentials está incluído
+    const fetchOptions = {
+        ...options,
+        headers: {
+            'Content-Type': 'application/json',
+            ...headers
+        },
+        credentials: 'include'
+    };
+    
+    return fetch(url, fetchOptions);
+}
+
 // Verificar autenticação
 async function checkAuth() {
+    // Carregar token se disponível
+    authToken = sessionStorage.getItem('authToken');
+    
     // Verificar se existe sessão no sessionStorage
     const username = sessionStorage.getItem('username');
     if (username) {
         // Verificar se a sessão ainda é válida no servidor
         try {
-            const response = await fetch(`${API_BASE}/stats.php`, {
-                method: 'GET',
-                credentials: 'include'
+            const response = await authenticatedFetch(`${API_BASE}/stats.php`, {
+                method: 'GET'
             });
             
             if (response.ok) {
@@ -463,11 +492,10 @@ async function handleLogin(e) {
     
     try {
         showLoading();
-        const response = await fetch(`${API_BASE}/login.php`, {
+        const response = await authenticatedFetch(`${API_BASE}/login.php`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ username, password }),
-            credentials: 'include' // Enviar cookies de sessão
+            body: JSON.stringify({ username, password })
         });
         
         // Verificar se a resposta é válida
@@ -497,6 +525,12 @@ async function handleLogin(e) {
             // Verificar se cookies foram recebidos (pode estar vazio se HttpOnly)
             const cookies = document.cookie;
             console.log('Cookies após login (pode estar vazio se HttpOnly):', cookies);
+            
+            // Armazenar token de autenticação como fallback
+            if (data.auth_token) {
+                authToken = data.auth_token;
+                sessionStorage.setItem('authToken', authToken);
+            }
             
             // Armazenar dados no sessionStorage para referência
             sessionStorage.setItem('username', data.user.username);
@@ -531,7 +565,7 @@ async function handleLogin(e) {
 async function handleLogout() {
     try {
         // Chamar API de logout para destruir sessão no servidor
-        await fetch(`${API_BASE}/logout.php`, {
+        await authenticatedFetch(`${API_BASE}/logout.php`, {
             method: 'POST',
             credentials: 'include'
         }).catch(() => {
@@ -609,8 +643,8 @@ window.closeCountSetupModal = closeCountSetupModal;
 // Carregar Empresas para o Modal
 async function loadCompaniesForSetup() {
     try {
-        const response = await fetch(`${API_BASE}/companies.php?active_only=true`, {
-            credentials: 'include'
+        const response = await authenticatedFetch(`${API_BASE}/companies.php?active_only=true`, {
+            method: 'GET'
         });
         
         if (!response.ok) {
@@ -652,7 +686,7 @@ async function handleCompanyChange() {
     
     // Carregar armazéns da empresa
     try {
-        const response = await fetch(`${API_BASE}/warehouses.php?company_id=${companyId}&active_only=true`, {
+        const response = await authenticatedFetch(`${API_BASE}/warehouses.php?company_id=${companyId}&active_only=true`, {
             credentials: 'include'
         });
         
@@ -703,8 +737,8 @@ async function handleWarehouseChange() {
     
     // Carregar sessões abertas para a empresa e armazém
     try {
-        const response = await fetch(`${API_BASE}/session_count.php`, {
-            credentials: 'include'
+        const response = await authenticatedFetch(`${API_BASE}/session_count.php`, {
+            method: 'GET'
         });
         
         if (!response.ok) {
@@ -780,7 +814,7 @@ async function confirmCountSetup() {
         
         try {
             showLoading();
-            const response = await fetch(`${API_BASE}/session_count.php`, {
+            const response = await authenticatedFetch(`${API_BASE}/session_count.php`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -1200,7 +1234,7 @@ async function handleBarcode(barcode) {
         }
         
         // Buscar item pelo barcode
-        const response = await fetch(`${API_BASE}/get_item.php?barcode=${encodeURIComponent(barcode)}`, {
+        const response = await authenticatedFetch(`${API_BASE}/get_item.php?barcode=${encodeURIComponent(barcode)}`, {
             method: 'GET',
             headers: { 'Content-Type': 'application/json' },
             credentials: 'include' // Enviar cookies de sessão
@@ -1304,7 +1338,7 @@ async function createSession() {
     
     try {
         showLoading();
-        const response = await fetch(`${API_BASE}/session_count.php`, {
+        const response = await authenticatedFetch(`${API_BASE}/session_count.php`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ name, description }),
@@ -1365,8 +1399,8 @@ async function saveCount() {
     if (!currentSessionId) {
         // Tentar carregar sessões e encontrar uma aberta
         try {
-            const sessionsResponse = await fetch(`${API_BASE}/session_count.php`, {
-                credentials: 'include'
+            const sessionsResponse = await authenticatedFetch(`${API_BASE}/session_count.php`, {
+                method: 'GET'
             });
             
             if (sessionsResponse.ok) {
@@ -1385,7 +1419,7 @@ async function saveCount() {
                     } else {
                         // Criar uma sessão automática se não houver nenhuma aberta
                         const autoSessionName = `Inventário ${new Date().toLocaleDateString('pt-PT')}`;
-                        const createResponse = await fetch(`${API_BASE}/session_count.php`, {
+                        const createResponse = await authenticatedFetch(`${API_BASE}/session_count.php`, {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({ 
@@ -1445,7 +1479,7 @@ async function saveCount() {
     
     try {
         showLoading();
-        const response = await fetch(`${API_BASE}/session_count.php`, {
+        const response = await authenticatedFetch(`${API_BASE}/session_count.php`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -1504,7 +1538,7 @@ async function saveCount() {
 // Carregar Sessões
 async function loadSessions() {
     try {
-        const response = await fetch(`${API_BASE}/session_count.php`, {
+        const response = await authenticatedFetch(`${API_BASE}/session_count.php`, {
             credentials: 'include' // Enviar cookies de sessão
         });
         
@@ -1579,8 +1613,8 @@ async function loadSessionInfo(sessionId) {
     currentSessionId = sessionId;
     
     try {
-        const response = await fetch(`${API_BASE}/session_count.php?id=${sessionId}`, {
-            credentials: 'include' // Enviar cookies de sessão
+        const response = await authenticatedFetch(`${API_BASE}/session_count.php?id=${sessionId}`, {
+            method: 'GET'
         });
         
         if (!response.ok) {
@@ -1756,10 +1790,9 @@ async function uploadFile() {
     
     try {
         showLoading();
-        const response = await fetch(`${API_BASE}/items_import.php`, {
+        const response = await authenticatedFetch(`${API_BASE}/items_import.php`, {
             method: 'POST',
-            body: formData,
-            credentials: 'include' // Enviar cookies de sessão
+            body: formData
         });
         
         const responseText = await response.text();
@@ -1865,8 +1898,8 @@ function showToast(message, type = 'success') {
 // Carregar Dashboard
 async function loadDashboard() {
     try {
-        const response = await fetch(`${API_BASE}/stats.php`, {
-            credentials: 'include'
+        const response = await authenticatedFetch(`${API_BASE}/stats.php`, {
+            method: 'GET'
         });
         
         if (!response.ok) {
@@ -1971,8 +2004,8 @@ async function loadItems(page = 1, search = '') {
             params.append('low_stock', 'true');
         }
         
-        const response = await fetch(`${API_BASE}/items.php?${params.toString()}`, {
-            credentials: 'include'
+        const response = await authenticatedFetch(`${API_BASE}/items.php?${params.toString()}`, {
+            method: 'GET'
         });
         
         if (!response.ok) {
@@ -2066,7 +2099,7 @@ async function loadItems(page = 1, search = '') {
 async function loadCompanies() {
     try {
         showLoading();
-        const response = await fetch(`${API_BASE}/companies.php?active_only=false`, { credentials: 'include' });
+        const response = await authenticatedFetch(`${API_BASE}/companies.php?active_only=false`, { method: 'GET' });
         if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
         const data = await response.json();
         hideLoading();
@@ -2106,7 +2139,7 @@ function openCompanyModal(id = null) {
     modal.classList.remove('hidden');
     if (id) {
         // carregar empresa
-        fetch(`${API_BASE}/companies.php?id=${id}`, { credentials: 'include' })
+        authenticatedFetch(`${API_BASE}/companies.php?id=${id}`, { method: 'GET' })
             .then(r => r.text()).then(t => { try { return JSON.parse(t); } catch { throw new Error('parse'); } })
             .then(data => {
                 if (data.success && data.company) {
@@ -2150,7 +2183,7 @@ async function saveCompany() {
     try {
         showLoading();
         const method = id ? 'PUT' : 'POST';
-        const resp = await fetch(`${API_BASE}/companies.php`, {
+        const resp = await authenticatedFetch(`${API_BASE}/companies.php`, {
             method,
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload),
@@ -2176,7 +2209,7 @@ async function deleteCompany(id) {
     if (!confirm('Eliminar esta empresa?')) return;
     try {
         showLoading();
-        const resp = await fetch(`${API_BASE}/companies.php?id=${id}`, { method: 'DELETE', credentials: 'include' });
+        const resp = await authenticatedFetch(`${API_BASE}/companies.php?id=${id}`, { method: 'DELETE' });
         if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
         const data = await resp.json();
         hideLoading();
@@ -2194,7 +2227,7 @@ async function deleteCompany(id) {
 async function loadWarehouses() {
     try {
         showLoading();
-        const resp = await fetch(`${API_BASE}/warehouses.php`, { credentials: 'include' });
+        const resp = await authenticatedFetch(`${API_BASE}/warehouses.php`, { method: 'GET' });
         if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
         const data = await resp.json();
         hideLoading();
@@ -2228,7 +2261,7 @@ async function loadWarehouses() {
 async function populateCompaniesSelect(selectId) {
     const select = document.getElementById(selectId);
     select.innerHTML = '';
-    const resp = await fetch(`${API_BASE}/companies.php?active_only=true`, { credentials: 'include' });
+    const resp = await authenticatedFetch(`${API_BASE}/companies.php?active_only=true`, { method: 'GET' });
     if (!resp.ok) return;
     const data = await resp.json();
     const opts = (data.companies || []).map(c => `<option value="${c.id}">${c.name}${c.code ? ' (' + c.code + ')' : ''}</option>`).join('');
@@ -2242,7 +2275,7 @@ function openWarehouseModal(id = null) {
     populateCompaniesSelect('warehouseCompany');
     document.getElementById('warehouseModal').classList.remove('hidden');
     if (id) {
-        fetch(`${API_BASE}/warehouses.php?id=${id}`, { credentials: 'include' })
+        authenticatedFetch(`${API_BASE}/warehouses.php?id=${id}`, { method: 'GET' })
             .then(r => r.text()).then(t => { try { return JSON.parse(t); } catch { throw new Error('parse'); } })
             .then(data => {
                 if (data.success && data.warehouse) {
@@ -2284,7 +2317,7 @@ async function saveWarehouse() {
     try {
         showLoading();
         const method = id ? 'PUT' : 'POST';
-        const resp = await fetch(`${API_BASE}/warehouses.php`, {
+        const resp = await authenticatedFetch(`${API_BASE}/warehouses.php`, {
             method,
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload),
@@ -2310,7 +2343,7 @@ async function deleteWarehouse(id) {
     if (!confirm('Eliminar este armazém?')) return;
     try {
         showLoading();
-        const resp = await fetch(`${API_BASE}/warehouses.php?id=${id}`, { method: 'DELETE', credentials: 'include' });
+        const resp = await authenticatedFetch(`${API_BASE}/warehouses.php?id=${id}`, { method: 'DELETE', credentials: 'include' });
         if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
         const data = await resp.json();
         hideLoading();
@@ -2339,7 +2372,7 @@ async function openItemModal(itemId = null) {
         modalTitle.textContent = 'Editar Artigo';
         try {
             showLoading();
-            const response = await fetch(`${API_BASE}/items.php?id=${itemId}`, {
+            const response = await authenticatedFetch(`${API_BASE}/items.php?id=${itemId}`, {
                 credentials: 'include'
             });
             
@@ -2434,7 +2467,7 @@ async function saveItem(e) {
         showLoading();
         const method = itemId ? 'PUT' : 'POST';
         
-        const response = await fetch(`${API_BASE}/items.php`, {
+        const response = await authenticatedFetch(`${API_BASE}/items.php`, {
             method: method,
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(itemData),
@@ -2486,7 +2519,7 @@ async function deleteItem(itemId) {
     
     try {
         showLoading();
-        const response = await fetch(`${API_BASE}/items.php?id=${itemId}`, {
+        const response = await authenticatedFetch(`${API_BASE}/items.php?id=${itemId}`, {
             method: 'DELETE',
             credentials: 'include'
         });
@@ -2526,7 +2559,7 @@ async function deleteItem(itemId) {
 // Carregar Categorias para Select
 async function loadCategoriesForSelect() {
     try {
-        const response = await fetch(`${API_BASE}/categories.php`, {
+        const response = await authenticatedFetch(`${API_BASE}/categories.php`, {
             credentials: 'include'
         });
         
@@ -2659,7 +2692,7 @@ async function openCategoryModal(categoryId = null) {
         modalTitle.textContent = 'Editar Categoria';
         try {
             showLoading();
-            const response = await fetch(`${API_BASE}/categories.php?id=${categoryId}`, {
+            const response = await authenticatedFetch(`${API_BASE}/categories.php?id=${categoryId}`, {
                 credentials: 'include'
             });
             
@@ -2747,7 +2780,7 @@ async function saveCategory(e) {
         showLoading();
         const method = categoryId ? 'PUT' : 'POST';
         
-        const response = await fetch(`${API_BASE}/categories.php`, {
+        const response = await authenticatedFetch(`${API_BASE}/categories.php`, {
             method: method,
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(categoryData),
@@ -2800,7 +2833,7 @@ async function deleteCategory(categoryId) {
     
     try {
         showLoading();
-        const response = await fetch(`${API_BASE}/categories.php?id=${categoryId}`, {
+        const response = await authenticatedFetch(`${API_BASE}/categories.php?id=${categoryId}`, {
             method: 'DELETE',
             credentials: 'include'
         });
@@ -2868,7 +2901,7 @@ async function loadStockHistory(page = 1) {
             params.append('date_to', dateTo);
         }
         
-        const response = await fetch(`${API_BASE}/stock_history.php?${params.toString()}`, {
+        const response = await authenticatedFetch(`${API_BASE}/stock_history.php?${params.toString()}`, {
             credentials: 'include'
         });
         
@@ -2977,7 +3010,7 @@ async function loadUsers(page = 1, search = '') {
             params.append('search', currentUsersSearch);
         }
         
-        const response = await fetch(`${API_BASE}/users.php?${params.toString()}`, {
+        const response = await authenticatedFetch(`${API_BASE}/users.php?${params.toString()}`, {
             credentials: 'include'
         });
         
@@ -3095,7 +3128,7 @@ async function openUserModal(userId = null) {
         
         try {
             showLoading();
-            const response = await fetch(`${API_BASE}/users.php?id=${userId}`, {
+            const response = await authenticatedFetch(`${API_BASE}/users.php?id=${userId}`, {
                 credentials: 'include'
             });
             
@@ -3193,7 +3226,7 @@ async function saveUser(e) {
         showLoading();
         const method = userId ? 'PUT' : 'POST';
         
-        const response = await fetch(`${API_BASE}/users.php`, {
+        const response = await authenticatedFetch(`${API_BASE}/users.php`, {
             method: method,
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(userData),
@@ -3245,7 +3278,7 @@ async function deleteUser(userId) {
     
     try {
         showLoading();
-        const response = await fetch(`${API_BASE}/users.php?id=${userId}`, {
+        const response = await authenticatedFetch(`${API_BASE}/users.php?id=${userId}`, {
             method: 'DELETE',
             credentials: 'include'
         });
