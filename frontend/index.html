@@ -316,8 +316,40 @@
         <div id="historyTab" class="tab-content hidden">
             <div class="bg-white rounded-lg shadow-md p-6">
                 <h3 class="text-lg font-bold mb-4">Histórico de Movimentos de Stock</h3>
-                <div id="stockHistoryList" class="space-y-2">
+                
+                <!-- Filters -->
+                <div class="mb-4 grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <div>
+                        <label class="block text-gray-700 text-sm font-bold mb-2">Tipo:</label>
+                        <select id="historyType" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:border-blue-500">
+                            <option value="">Todos</option>
+                            <option value="entrada">Entrada</option>
+                            <option value="saida">Saída</option>
+                            <option value="ajuste">Ajuste</option>
+                            <option value="transferencia">Transferência</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-gray-700 text-sm font-bold mb-2">Data Início:</label>
+                        <input type="date" id="historyDateFrom" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:border-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-gray-700 text-sm font-bold mb-2">Data Fim:</label>
+                        <input type="date" id="historyDateTo" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:border-blue-500">
+                    </div>
+                    <div class="flex items-end">
+                        <button onclick="loadStockHistory(1)" class="w-full bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded">
+                            Filtrar
+                        </button>
+                    </div>
+                </div>
+                
+                <div id="historyList" class="space-y-2">
                     <!-- Stock history will be loaded here -->
+                </div>
+                
+                <div id="historyPagination" class="mt-4 flex justify-center gap-2">
+                    <!-- Pagination will be loaded here -->
                 </div>
             </div>
         </div>
@@ -340,6 +372,10 @@
                 <!-- Users List -->
                 <div id="usersList" class="space-y-2">
                     <!-- Users will be loaded here -->
+                </div>
+                
+                <div id="usersPagination" class="mt-4 flex justify-center gap-2">
+                    <!-- Pagination will be loaded here -->
                 </div>
             </div>
         </div>
@@ -471,11 +507,256 @@
         </div>
     </div>
 
+    <!-- Category Modal -->
+    <div id="categoryModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 hidden z-50">
+        <div class="bg-white rounded-lg shadow-lg max-w-md w-full">
+            <div class="p-6">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 id="categoryModalTitle" class="text-lg font-bold">Nova Categoria</h3>
+                    <button onclick="closeCategoryModal()" class="text-gray-500 hover:text-gray-700 text-xl">&times;</button>
+                </div>
+                <form id="categoryForm">
+                    <input type="hidden" id="categoryId" value="">
+                    <div class="mb-4">
+                        <label class="block text-gray-700 text-sm font-bold mb-2">Nome <span class="text-red-500">*</span>:</label>
+                        <input type="text" id="categoryName" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:border-blue-500" required>
+                    </div>
+                    <div class="mb-6">
+                        <label class="block text-gray-700 text-sm font-bold mb-2">Descrição:</label>
+                        <textarea id="categoryDescription" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:border-blue-500" rows="3"></textarea>
+                    </div>
+                    <div class="flex justify-end space-x-2">
+                        <button type="button" onclick="closeCategoryModal()" class="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded">
+                            Cancelar
+                        </button>
+                        <button type="submit" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded">
+                            Guardar
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- User Modal -->
+    <div id="userModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 hidden z-50">
+        <div class="bg-white rounded-lg shadow-lg max-w-md w-full">
+            <div class="p-6">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 id="userModalTitle" class="text-lg font-bold">Novo Utilizador</h3>
+                    <button onclick="closeUserModal()" class="text-gray-500 hover:text-gray-700 text-xl">&times;</button>
+                </div>
+                <form id="userForm">
+                    <input type="hidden" id="userId" value="">
+                    <div class="mb-4">
+                        <label class="block text-gray-700 text-sm font-bold mb-2">Username <span class="text-red-500">*</span>:</label>
+                        <input type="text" id="userUsername" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:border-blue-500" required>
+                    </div>
+                    <div class="mb-4">
+                        <label class="block text-gray-700 text-sm font-bold mb-2">Email <span class="text-red-500">*</span>:</label>
+                        <input type="email" id="userEmail" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:border-blue-500" required>
+                    </div>
+                    <div class="mb-4">
+                        <label class="block text-gray-700 text-sm font-bold mb-2">Password <span id="passwordRequired" class="text-red-500">*</span>:</label>
+                        <input type="password" id="userPassword" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:border-blue-500">
+                        <p class="text-xs text-gray-500 mt-1">Deixe em branco para manter a password atual (ao editar)</p>
+                    </div>
+                    <div class="mb-4">
+                        <label class="block text-gray-700 text-sm font-bold mb-2">Role:</label>
+                        <select id="userRole" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:border-blue-500">
+                            <option value="operator">Operador</option>
+                            <option value="admin">Administrador</option>
+                        </select>
+                    </div>
+                    <div class="mb-6">
+                        <label class="flex items-center">
+                            <input type="checkbox" id="userIsActive" class="mr-2" checked>
+                            <span class="text-gray-700 text-sm font-bold">Ativo</span>
+                        </label>
+                    </div>
+                    <div class="flex justify-end space-x-2">
+                        <button type="button" onclick="closeUserModal()" class="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded">
+                            Cancelar
+                        </button>
+                        <button type="submit" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded">
+                            Guardar
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Company Modal -->
+    <div id="companyModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 hidden z-50">
+        <div class="bg-white rounded-lg shadow-lg max-w-md w-full">
+            <div class="p-6">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 id="companyModalTitle" class="text-lg font-bold">Nova Empresa</h3>
+                    <button onclick="closeCompanyModal()" class="text-gray-500 hover:text-gray-700 text-xl">&times;</button>
+                </div>
+                <form id="companyForm">
+                    <input type="hidden" id="companyId" value="">
+                    <div class="mb-4">
+                        <label class="block text-gray-700 text-sm font-bold mb-2">Nome <span class="text-red-500">*</span>:</label>
+                        <input type="text" id="companyName" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:border-blue-500" required>
+                    </div>
+                    <div class="mb-4">
+                        <label class="block text-gray-700 text-sm font-bold mb-2">Código:</label>
+                        <input type="text" id="companyCode" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:border-blue-500">
+                    </div>
+                    <div class="mb-4">
+                        <label class="block text-gray-700 text-sm font-bold mb-2">Morada:</label>
+                        <textarea id="companyAddress" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:border-blue-500" rows="2"></textarea>
+                    </div>
+                    <div class="mb-4">
+                        <label class="block text-gray-700 text-sm font-bold mb-2">Telefone:</label>
+                        <input type="text" id="companyPhone" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:border-blue-500">
+                    </div>
+                    <div class="mb-4">
+                        <label class="block text-gray-700 text-sm font-bold mb-2">Email:</label>
+                        <input type="email" id="companyEmail" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:border-blue-500">
+                    </div>
+                    <div class="mb-4">
+                        <label class="block text-gray-700 text-sm font-bold mb-2">NIF:</label>
+                        <input type="text" id="companyTaxId" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:border-blue-500">
+                    </div>
+                    <div class="mb-6">
+                        <label class="flex items-center">
+                            <input type="checkbox" id="companyActive" class="mr-2" checked>
+                            <span class="text-gray-700 text-sm font-bold">Ativo</span>
+                        </label>
+                    </div>
+                    <div class="flex justify-end space-x-2">
+                        <button type="button" onclick="closeCompanyModal()" class="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded">
+                            Cancelar
+                        </button>
+                        <button type="submit" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded">
+                            Guardar
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Warehouse Modal -->
+    <div id="warehouseModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 hidden z-50">
+        <div class="bg-white rounded-lg shadow-lg max-w-md w-full">
+            <div class="p-6">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 id="warehouseModalTitle" class="text-lg font-bold">Novo Armazém</h3>
+                    <button onclick="closeWarehouseModal()" class="text-gray-500 hover:text-gray-700 text-xl">&times;</button>
+                </div>
+                <form id="warehouseForm">
+                    <input type="hidden" id="warehouseId" value="">
+                    <div class="mb-4">
+                        <label class="block text-gray-700 text-sm font-bold mb-2">Empresa <span class="text-red-500">*</span>:</label>
+                        <select id="warehouseCompany" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:border-blue-500" required>
+                            <option value="">Selecionar empresa...</option>
+                        </select>
+                    </div>
+                    <div class="mb-4">
+                        <label class="block text-gray-700 text-sm font-bold mb-2">Nome <span class="text-red-500">*</span>:</label>
+                        <input type="text" id="warehouseName" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:border-blue-500" required>
+                    </div>
+                    <div class="mb-4">
+                        <label class="block text-gray-700 text-sm font-bold mb-2">Código:</label>
+                        <input type="text" id="warehouseCode" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:border-blue-500">
+                    </div>
+                    <div class="mb-4">
+                        <label class="block text-gray-700 text-sm font-bold mb-2">Morada:</label>
+                        <textarea id="warehouseAddress" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:border-blue-500" rows="2"></textarea>
+                    </div>
+                    <div class="mb-4">
+                        <label class="block text-gray-700 text-sm font-bold mb-2">Localização:</label>
+                        <input type="text" id="warehouseLocation" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:border-blue-500">
+                    </div>
+                    <div class="mb-6">
+                        <label class="flex items-center">
+                            <input type="checkbox" id="warehouseActive" class="mr-2" checked>
+                            <span class="text-gray-700 text-sm font-bold">Ativo</span>
+                        </label>
+                    </div>
+                    <div class="flex justify-end space-x-2">
+                        <button type="button" onclick="closeWarehouseModal()" class="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded">
+                            Cancelar
+                        </button>
+                        <button type="submit" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded">
+                            Guardar
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Item Modal (for editing) -->
+    <div id="itemModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 hidden z-50">
+        <div class="bg-white rounded-lg shadow-lg max-w-md w-full max-h-[90vh] overflow-y-auto">
+            <div class="p-6">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 id="itemModalTitle" class="text-lg font-bold">Editar Artigo</h3>
+                    <button onclick="closeItemModal()" class="text-gray-500 hover:text-gray-700 text-xl">&times;</button>
+                </div>
+                <form id="itemForm">
+                    <input type="hidden" id="itemId" value="">
+                    <div class="mb-4">
+                        <label class="block text-gray-700 text-sm font-bold mb-2">Código de Barras <span class="text-red-500">*</span>:</label>
+                        <input type="text" id="itemBarcode" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:border-blue-500" required>
+                    </div>
+                    <div class="mb-4">
+                        <label class="block text-gray-700 text-sm font-bold mb-2">Nome <span class="text-red-500">*</span>:</label>
+                        <input type="text" id="itemName" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:border-blue-500" required>
+                    </div>
+                    <div class="mb-4">
+                        <label class="block text-gray-700 text-sm font-bold mb-2">Descrição:</label>
+                        <textarea id="itemDescription" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:border-blue-500" rows="3"></textarea>
+                    </div>
+                    <div class="mb-4">
+                        <label class="block text-gray-700 text-sm font-bold mb-2">Categoria:</label>
+                        <select id="itemCategory" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:border-blue-500">
+                            <option value="">Selecionar categoria...</option>
+                        </select>
+                    </div>
+                    <div class="mb-4">
+                        <label class="block text-gray-700 text-sm font-bold mb-2">Quantidade:</label>
+                        <input type="number" id="itemQuantity" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:border-blue-500" value="0" min="0">
+                    </div>
+                    <div class="mb-4">
+                        <label class="block text-gray-700 text-sm font-bold mb-2">Quantidade Mínima:</label>
+                        <input type="number" id="itemMinQuantity" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:border-blue-500" value="0" min="0">
+                    </div>
+                    <div class="mb-4">
+                        <label class="block text-gray-700 text-sm font-bold mb-2">Preço Unitário:</label>
+                        <input type="number" id="itemPrice" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:border-blue-500" value="0" min="0" step="0.01">
+                    </div>
+                    <div class="mb-4">
+                        <label class="block text-gray-700 text-sm font-bold mb-2">Localização:</label>
+                        <input type="text" id="itemLocation" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:border-blue-500">
+                    </div>
+                    <div class="mb-6">
+                        <label class="block text-gray-700 text-sm font-bold mb-2">Fornecedor:</label>
+                        <input type="text" id="itemSupplier" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:border-blue-500">
+                    </div>
+                    <div class="flex justify-end space-x-2">
+                        <button type="button" onclick="closeItemModal()" class="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded">
+                            Cancelar
+                        </button>
+                        <button type="submit" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded">
+                            Guardar
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
     <!-- Toast Notifications -->
     <div id="toast" class="fixed top-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg hidden z-50">
         <span id="toastMessage"></span>
     </div>
 
-    <script src="app.js?v=1.2"></script>
+    <script src="app.js?v=1.3"></script>
 </body>
 </html>
