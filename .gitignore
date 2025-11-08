@@ -19,10 +19,10 @@ coverage/
 # nyc test coverage
 .nyc_output
 
-# Grunt intermediate storage (https://gruntjs.com/creating-plugins#storing-task-files)
+# Grunt intermediate storage
 .grunt
 
-# Bower dependency directory (https://bower.io/)
+# Bower dependency directory
 bower_components
 
 # node_modules
@@ -46,7 +46,7 @@ node_modules/
 .env.local
 .env.production
 
-# parcel-bundler cache (https://parceljs.org/)
+# parcel-bundler cache
 .cache
 .parcel-cache
 
@@ -74,7 +74,7 @@ node_modules/
 # Stores VSCode versions used for testing VSCode extensions
 .vscode-test
 
-# Uploads directory (will be created by Railway)
+# Uploads directory
 uploads/*
 !uploads/.gitkeep
 
@@ -98,34 +98,15 @@ Thumbs.db
 *.swo
 *~
 
-# Railway
-.railway/db_data/
-
 # Database data
 db_data/
 
 # Deployment packages
 *.zip
-digitalocean_package/
-deploy_package/
-inventox_*.zip
 
-# Temporary documentation
-*_INSTRUCTIONS.md
-*_SETUP.md
-*_DEPLOY.md
-*_FIX*.md
-CREATE_*.md
-DIGITALOCEAN_*.md
-GITHUB_*.md
-RAILWAY_*.md
-UPLOAD_*.md
-INFINITYFREE_*.md
-RENDER_*.md
+# Electron build output
+dist/
+build/
 
-# Docker files (não usados no DigitalOcean)
-Dockerfile.fixed
-docker-compose.digitalocean.yml
-
-# Public directory (se não usado)
-public/
+# Logs
+logs/

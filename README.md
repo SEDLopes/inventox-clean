@@ -1,82 +1,100 @@
-# 📦 InventoX - Sistema de Gestão de Inventário
+# InventoX - Sistema de Gestão de Inventário
 
-Sistema completo de gestão de inventário com digitalização de códigos de barras, otimizado para dispositivos móveis.
+Sistema completo de gestão de inventário com interface web responsiva e suporte para dispositivos móveis.
 
-## 🚀 **Funcionalidades**
+## 🚀 Características
 
-- ✅ **Scanner de Códigos de Barras** (câmara móvel otimizada)
-- ✅ **Gestão de Inventário** (artigos, categorias, armazéns)
-- ✅ **Importação CSV/XLSX** (mapeamento inteligente de colunas)
-- ✅ **Busca por Códigos de Referência** (busca parcial)
-- ✅ **Interface Mobile-First** (iOS/Android otimizado)
-- ✅ **Sessões de Inventário** (contagens organizadas)
-- ✅ **Relatórios e Exportação** (dados detalhados)
-- ✅ **Gestão de Utilizadores** (admin/operador)
+- ✅ Gestão completa de inventário
+- ✅ Digitalização de códigos de barras
+- ✅ Importação de ficheiros XLSX
+- ✅ Interface responsiva para mobile
+- ✅ API REST completa
+- ✅ Sessões de contagem
+- ✅ Relatórios e exportação
 
-## 🛠️ **Tecnologias**
+## 📦 Estrutura do Projeto
 
-- **Frontend**: HTML5, CSS3, JavaScript (Vanilla)
-- **Backend**: PHP 8.2 + Apache
-- **Base de Dados**: MySQL 8.0
-- **Scanner**: ZXing-js (WebRTC)
-- **Import**: Python (pandas, openpyxl)
-- **Deploy**: Railway (Docker/Nixpacks)
-
-## 🌐 **Deploy no Railway**
-
-Este projeto está configurado para deploy automático no Railway:
-
-1. **Conecte este repositório ao Railway**
-2. **Adicione MySQL service**
-3. **Deploy automático** (via Git push)
-
-### Arquivos de Configuração:
-- `railway.json` - Configuração Railway
-- `nixpacks.toml` - Build settings
-- `api/health.php` - Health check
-- `.htaccess` - Apache config
-
-## 📱 **Uso Mobile**
-
-O sistema detecta automaticamente dispositivos móveis e:
-- 📷 **Força câmara traseira** por padrão
-- 🔄 **Botão para trocar câmara** (frontal/traseira)
-- 📳 **Vibração** ao detectar código
-- 🎯 **Interface otimizada** para touch
-
-## 🗄️ **Base de Dados**
-
-Execute `db_init_railway.sql` no MySQL do Railway para inicializar:
-- 👤 **Admin**: `admin` / `admin123`
-- 📦 **Dados de exemplo** incluídos
-- 🏗️ **Schema completo** com índices
-
-## 📋 **APIs Disponíveis**
-
-- `GET /api/health.php` - Health check
-- `POST /api/login.php` - Autenticação
-- `GET /api/items.php` - Listar artigos
-- `GET /api/get_item.php?barcode=X` - Buscar artigo
-- `POST /api/items_import.php` - Importar CSV/XLSX
-- `GET /api/stats.php` - Estatísticas
-- `GET /api/session_count.php` - Sessões
-
-## 🔧 **Desenvolvimento Local**
-
-```bash
-# Docker Compose
-docker-compose up -d
-
-# URLs
-Frontend: http://localhost:8080/frontend/
-API: http://localhost:8080/api/
-phpMyAdmin: http://localhost:8081/
+```
+InventoX/
+├── frontend/          # Interface web
+├── api/              # API PHP
+├── electron/         # Aplicação Electron (desktop)
+├── docs/             # Documentação
+├── scripts/          # Scripts utilitários
+├── uploads/          # Ficheiros enviados
+└── Dockerfile        # Configuração Docker
 ```
 
-## 📄 **Licença**
+## 🛠️ Instalação
 
-MIT License - Uso livre para projetos pessoais e comerciais.
+### Desenvolvimento Local
 
----
+1. **Requisitos:**
+   - PHP 8.1+
+   - MySQL 8.0+
+   - Apache/Nginx
 
-**🚀 Deploy automático no Railway - Push para main branch!**
+2. **Configuração:**
+   ```bash
+   # Copiar variáveis de ambiente
+   cp .env.example .env
+   
+   # Configurar base de dados
+   mysql -u root -p < db.sql
+   ```
+
+3. **Iniciar servidor:**
+   ```bash
+   php -S localhost:8080 -t .
+   ```
+
+### Aplicação Electron (Desktop)
+
+```bash
+# Instalar dependências
+npm install
+
+# Iniciar aplicação
+npm start
+
+# Build para produção
+npm run build
+```
+
+### Deploy DigitalOcean
+
+1. **Criar App Platform:**
+   - Acessar DigitalOcean Dashboard
+   - Criar novo App
+   - Conectar repositório GitHub
+
+2. **Configurar Database:**
+   - Adicionar MySQL Database
+   - Configurar variáveis de ambiente
+
+3. **Deploy:**
+   - O deploy é automático via GitHub
+   - Usa Dockerfile para build
+
+## 📚 Documentação
+
+Consulte a pasta `docs/` para documentação completa:
+- `docs/INSTALLATION.md` - Guia de instalação
+- `docs/API_REFERENCE.md` - Referência da API
+- `docs/MOBILE_GUIDE.md` - Guia mobile
+- `docs/deployment/` - Guias de deploy
+
+## 🔧 Tecnologias
+
+- **Frontend:** HTML5, CSS3, JavaScript (Vanilla)
+- **Backend:** PHP 8.1, MySQL 8.0
+- **Desktop:** Electron
+- **Deploy:** Docker, DigitalOcean App Platform
+
+## 📝 Licença
+
+MIT License - Ver `docs/LICENSE.md`
+
+## 👤 Autor
+
+Sandro Lopes

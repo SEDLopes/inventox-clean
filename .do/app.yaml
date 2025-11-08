@@ -1,35 +1,33 @@
 name: inventox
 services:
-- name: web
-  source_dir: /
-  github:
-    repo: SEDLopes/inventox-app
-    branch: main
-  dockerfile_path: Dockerfile
-  instance_count: 1
-  instance_size_slug: basic-xxs
-  http_port: 80
-  routes:
-  - path: /
-  envs:
-  - key: DB_HOST
-    scope: RUN_TIME
-    type: SECRET
-  - key: DB_NAME
-    scope: RUN_TIME
-    type: SECRET
-  - key: DB_USER
-    scope: RUN_TIME
-    type: SECRET
-  - key: DB_PASS
-    scope: RUN_TIME
-    type: SECRET
-  - key: DB_PORT
-    scope: RUN_TIME
-    value: "25060"
-
+  - name: inventox-web
+    source_dir: /
+    github:
+      repo: SEDLopes/inventox-app
+      branch: main
+      deploy_on_push: true
+    dockerfile_path: Dockerfile
+    http_port: 80
+    instance_count: 1
+    instance_size_slug: basic-xxs
+    envs:
+      - key: DB_HOST
+        scope: RUN_TIME
+        value: ${inventox-db.HOSTNAME}
+      - key: DB_NAME
+        scope: RUN_TIME
+        value: ${inventox-db.DATABASE}
+      - key: DB_USER
+        scope: RUN_TIME
+        value: ${inventox-db.USERNAME}
+      - key: DB_PASS
+        scope: RUN_TIME
+        value: ${inventox-db.PASSWORD}
+      - key: DB_PORT
+        scope: RUN_TIME
+        value: ${inventox-db.PORT}
 databases:
-- name: inventox-db
-  engine: MYSQL
-  version: "8"
-  size: db-s-1vcpu-1gb
+  - name: inventox-db
+    engine: MYSQL
+    version: "8"
+    production: false
