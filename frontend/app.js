@@ -249,9 +249,7 @@ function initEventListeners() {
         });
     }
     
-    // Sessions
-    const refreshSessionsBtn = document.getElementById('refreshSessionsBtn');
-    if (refreshSessionsBtn) refreshSessionsBtn.addEventListener('click', loadSessions);
+    // Sessions - refreshSessionsBtn já foi declarado acima
 }
 
 // Inicializar ZXing
