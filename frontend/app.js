@@ -1332,11 +1332,22 @@ async function createSession() {
         if (data.success) {
             currentSessionId = data.session_id;
             loadSessions();
-            document.getElementById('sessionSelect').classList.remove('hidden');
-            document.getElementById('currentSessionInfo').classList.remove('hidden');
-            document.getElementById('currentSessionName').textContent = name;
-            document.getElementById('sessionName').value = '';
-            document.getElementById('sessionDescription').value = '';
+            const sessionSelect = document.getElementById('sessionSelect');
+            const currentSessionInfo = document.getElementById('currentSessionInfo');
+            const currentSessionName = document.getElementById('currentSessionName');
+            
+            if (sessionSelect) sessionSelect.classList.remove('hidden');
+            if (currentSessionInfo) currentSessionInfo.classList.remove('hidden');
+            if (currentSessionName) currentSessionName.textContent = name;
+            
+            // Limpar formulário
+            if (nameEl) nameEl.value = '';
+            if (descriptionEl) descriptionEl.value = '';
+            
+            // Fechar modal
+            const modal = document.getElementById('createSessionModal');
+            if (modal) modal.classList.add('hidden');
+            
             showToast('Sessão criada com sucesso');
         } else {
             showToast(data.message, 'error');
