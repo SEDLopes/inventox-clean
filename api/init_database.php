@@ -6,11 +6,29 @@
 
 // Token de segurança simples
 $required_token = 'inventox2024';
-$provided_token = $_GET['token'] ?? '';
+// Aceitar token de GET ou POST
+$provided_token = $_GET['token'] ?? $_POST['token'] ?? '';
 
-if ($provided_token !== $required_token) {
+// Debug (remover em produção se necessário)
+error_log("init_database.php - Token recebido: " . ($provided_token ?: 'VAZIO'));
+error_log("init_database.php - Token esperado: " . $required_token);
+error_log("init_database.php - GET: " . print_r($_GET, true));
+error_log("init_database.php - POST: " . print_r($_POST, true));
+
+// Verificação mais flexível (trim e case-insensitive para debug)
+$provided_token_clean = trim($provided_token);
+$required_token_clean = trim($required_token);
+
+if ($provided_token_clean !== $required_token_clean) {
     http_response_code(403);
-    die(json_encode(['error' => 'Token inválido. Use: ?token=inventox2024']));
+    die(json_encode([
+        'error' => 'Token inválido. Use: ?token=inventox2024',
+        'debug' => [
+            'provided' => $provided_token_clean ?: 'VAZIO',
+            'expected' => $required_token_clean,
+            'match' => false
+        ]
+    ]));
 }
 
 // Headers para JSON
