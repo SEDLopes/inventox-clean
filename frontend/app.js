@@ -492,9 +492,11 @@ async function handleLogin(e) {
         hideLoading();
         
         if (data.success) {
-            // Verificar se cookies foram recebidos
+            // NOTA: Cookies HttpOnly não são acessíveis via document.cookie
+            // Isso é normal e esperado - o cookie será enviado automaticamente nas requisições
+            // Verificar se cookies foram recebidos (pode estar vazio se HttpOnly)
             const cookies = document.cookie;
-            console.log('Cookies após login:', cookies);
+            console.log('Cookies após login (pode estar vazio se HttpOnly):', cookies);
             
             // Armazenar dados no sessionStorage para referência
             sessionStorage.setItem('username', data.user.username);
@@ -504,7 +506,7 @@ async function handleLogin(e) {
             // Aguardar um momento para garantir que os cookies foram definidos
             setTimeout(() => {
                 showDashboard(data.user.username);
-            }, 100);
+            }, 200);
         } else {
             const loginError = document.getElementById('loginError');
             if (loginError) {
@@ -1281,8 +1283,17 @@ async function handleBarcode(barcode) {
 
 // Criar Sessão
 async function createSession() {
-    const name = document.getElementById('sessionName').value;
-    const description = document.getElementById('sessionDescription').value;
+    const nameEl = document.getElementById('newSessionName');
+    const descriptionEl = document.getElementById('newSessionDescription');
+    
+    if (!nameEl || !descriptionEl) {
+        console.error('Elementos do formulário de sessão não encontrados');
+        showToast('Erro: Formulário não encontrado', 'error');
+        return;
+    }
+    
+    const name = nameEl.value;
+    const description = descriptionEl.value;
     
     // Validação
     const validation = validateSession(name, description);
