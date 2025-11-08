@@ -1,31 +1,38 @@
-# Railway Apache Configuration - SIMPLIFICADO
-DirectoryIndex index.html index.php
+# Railway .htaccess - CONFIGURAÇÃO MÍNIMA
+DirectoryIndex index.php index.html
 
-# Rewrite rules básicas
+# Rewrite Engine
 RewriteEngine On
 
-# Redirecionar root para frontend se não for API
+# Health check - garantir que / funciona
 RewriteCond %{REQUEST_URI} ^/$
-RewriteRule ^$ /frontend/ [R=301,L]
+RewriteRule ^$ index.php [L]
 
-# API routes
+# API routes - processar diretamente
 RewriteCond %{REQUEST_URI} ^/api/
 RewriteCond %{REQUEST_FILENAME} -f
 RewriteRule ^api/(.*)$ api/$1 [L,QSA]
 
-# Frontend routes (SPA)
+# Frontend routes
+RewriteCond %{REQUEST_URI} ^/frontend/
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
-RewriteCond %{REQUEST_URI} ^/frontend/
 RewriteRule ^frontend/.*$ /frontend/index.html [L]
 
-# CORS Headers
+# Fallback para root
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteCond %{REQUEST_URI} !^/api/
+RewriteCond %{REQUEST_URI} !^/frontend/
+RewriteRule ^.*$ index.php [L]
+
+# CORS básico
 <IfModule mod_headers.c>
     Header always set Access-Control-Allow-Origin "*"
-    Header always set Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS"
-    Header always set Access-Control-Allow-Headers "Content-Type, Authorization, X-Requested-With"
+    Header always set Access-Control-Allow-Methods "GET, POST, OPTIONS"
+    Header always set Access-Control-Allow-Headers "Content-Type"
 </IfModule>
 
-# Handle OPTIONS requests
+# OPTIONS requests
 RewriteCond %{REQUEST_METHOD} OPTIONS
 RewriteRule ^(.*)$ $1 [R=200,L]
