@@ -1,4 +1,4 @@
-# Dockerfile otimizado para DigitalOcean App Platform
+# Dockerfile NATIVO para DigitalOcean - FORÇAR PHP
 FROM php:8.1-apache
 
 # Instalar extensões PHP necessárias
@@ -17,24 +17,29 @@ RUN apt-get update && apt-get install -y \
 RUN a2enmod rewrite
 RUN a2enmod headers
 
-# Configurar Apache para processar PHP corretamente
-RUN echo '<FilesMatch \.php$>' > /etc/apache2/conf-available/php-handler.conf && \
-    echo '    SetHandler application/x-httpd-php' >> /etc/apache2/conf-available/php-handler.conf && \
-    echo '</FilesMatch>' >> /etc/apache2/conf-available/php-handler.conf && \
-    echo '<Directory /var/www/html>' >> /etc/apache2/conf-available/php-handler.conf && \
-    echo '    Options Indexes FollowSymLinks' >> /etc/apache2/conf-available/php-handler.conf && \
-    echo '    AllowOverride All' >> /etc/apache2/conf-available/php-handler.conf && \
-    echo '    Require all granted' >> /etc/apache2/conf-available/php-handler.conf && \
-    echo '</Directory>' >> /etc/apache2/conf-available/php-handler.conf && \
-    a2enconf php-handler
+# CONFIGURAÇÃO APACHE NATIVA - FORÇAR PHP
+RUN echo 'LoadModule php_module /usr/local/lib/php/extensions/no-debug-non-zts-20210902/php.so' >> /etc/apache2/apache2.conf
+RUN echo 'AddType application/x-httpd-php .php' >> /etc/apache2/apache2.conf
+RUN echo '<FilesMatch \.php$>' >> /etc/apache2/apache2.conf
+RUN echo '    SetHandler application/x-httpd-php' >> /etc/apache2/apache2.conf
+RUN echo '</FilesMatch>' >> /etc/apache2/apache2.conf
 
-# Copiar arquivos da aplicação na estrutura correta
+# Configurar DocumentRoot
+RUN echo 'DocumentRoot /var/www/html' >> /etc/apache2/apache2.conf
+RUN echo '<Directory /var/www/html>' >> /etc/apache2/apache2.conf
+RUN echo '    Options Indexes FollowSymLinks' >> /etc/apache2/apache2.conf
+RUN echo '    AllowOverride All' >> /etc/apache2/apache2.conf
+RUN echo '    Require all granted' >> /etc/apache2/apache2.conf
+RUN echo '    DirectoryIndex index.php index.html' >> /etc/apache2/apache2.conf
+RUN echo '</Directory>' >> /etc/apache2/apache2.conf
+
+# Copiar arquivos da aplicação
 COPY frontend/ /var/www/html/
 COPY api/ /var/www/html/api/
 COPY .htaccess /var/www/html/.htaccess
 COPY index.php /var/www/html/index.php
 
-# Verificar se arquivos foram copiados corretamente
+# Verificar arquivos copiados
 RUN ls -la /var/www/html/api/ | head -10
 
 # Configurar permissões
@@ -44,7 +49,13 @@ RUN chmod -R 755 /var/www/html
 # Criar pasta de uploads
 RUN mkdir -p /var/www/html/uploads && chown www-data:www-data /var/www/html/uploads
 
-# Configurar Apache para servir do diretório correto
+# Configurar PHP
+RUN echo 'engine = On' >> /usr/local/etc/php/php.ini
+RUN echo 'short_open_tag = Off' >> /usr/local/etc/php/php.ini
+RUN echo 'default_mimetype = "text/html"' >> /usr/local/etc/php/php.ini
+RUN echo 'default_charset = "UTF-8"' >> /usr/local/etc/php/php.ini
+
+# Workdir
 WORKDIR /var/www/html
 
 # Expor porta 80

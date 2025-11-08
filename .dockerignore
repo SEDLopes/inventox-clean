@@ -1,0 +1,20 @@
+# Docker ignore
+.git
+.gitignore
+README.md
+*.md
+node_modules
+.env
+.env.local
+.env.example
+db_data/
+*.zip
+scripts/
+docs/
+.do/
+fly.toml
+railway.json
+nixpacks.toml
+apache_app.conf
+php.ini
+.user.ini
