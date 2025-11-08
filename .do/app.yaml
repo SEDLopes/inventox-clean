@@ -13,21 +13,21 @@ services:
     envs:
       - key: DB_HOST
         scope: RUN_TIME
-        value: ${inventox-db.HOSTNAME}
+        value: ${db-mysql-fra1-70732.HOSTNAME}
       - key: DB_NAME
         scope: RUN_TIME
-        value: ${inventox-db.DATABASE}
+        value: ${db-mysql-fra1-70732.DATABASE}
       - key: DB_USER
         scope: RUN_TIME
-        value: ${inventox-db.USERNAME}
+        value: ${db-mysql-fra1-70732.USERNAME}
       - key: DB_PASS
         scope: RUN_TIME
-        value: ${inventox-db.PASSWORD}
+        value: ${db-mysql-fra1-70732.PASSWORD}
       - key: DB_PORT
         scope: RUN_TIME
-        value: ${inventox-db.PORT}
+        value: ${db-mysql-fra1-70732.PORT}
 databases:
-  - name: inventox-db
+  - name: db-mysql-fra1-70732
     engine: MYSQL
     version: "8"
     production: false
