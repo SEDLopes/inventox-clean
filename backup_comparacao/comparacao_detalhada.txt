@@ -1,0 +1,6 @@
+COMPARAÇÃO DETALHADA: CÓDIGO ANTERIOR vs ATUAL
+==============================================
+
+CÓDIGO ANTERIOR (Commit mais antigo):
+
+TABS:

@@ -1,0 +1,29 @@
+# API Directory - FORÇAR PHP ABSOLUTO
+# Múltiplas abordagens para garantir processamento PHP
+
+AddType application/x-httpd-php .php
+AddHandler application/x-httpd-php .php
+
+<FilesMatch "\.php$">
+    SetHandler application/x-httpd-php
+    ForceType application/x-httpd-php
+</FilesMatch>
+
+# Configuração específica para arquivos PHP
+<Files "*.php">
+    SetHandler application/x-httpd-php
+    ForceType application/x-httpd-php
+</Files>
+
+# CORS Headers
+<IfModule mod_headers.c>
+    Header always set Access-Control-Allow-Origin "*"
+    Header always set Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS"
+    Header always set Access-Control-Allow-Headers "Content-Type, Authorization, X-Requested-With"
+    Header always set Access-Control-Allow-Credentials "true"
+</IfModule>
+
+# Handle OPTIONS requests
+RewriteEngine On
+RewriteCond %{REQUEST_METHOD} OPTIONS
+RewriteRule ^(.*)$ $1 [R=200,L]

@@ -89,45 +89,13 @@ try {
     
     // Configurar cookies de sessão ANTES de session_start()
     // IMPORTANTE: ini_set deve ser chamado ANTES de session_start()
-    
-    // Detectar HTTPS automaticamente
-    $isHttps = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || 
-               (!empty($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https') ||
-               (!empty($_SERVER['HTTP_X_FORWARDED_SSL']) && $_SERVER['HTTP_X_FORWARDED_SSL'] === 'on');
-    
-    error_log("Login - PHP Version: " . PHP_VERSION . 
-              ", HTTPS detected: " . ($isHttps ? 'YES' : 'NO') . 
-              ", HTTPS: " . ($_SERVER['HTTPS'] ?? 'not set') . 
-              ", X-Forwarded-Proto: " . ($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? 'not set'));
-    
-    // Configurar cookies básicos primeiro
     ini_set('session.cookie_httponly', '1');
+    ini_set('session.cookie_samesite', 'Lax');
     ini_set('session.use_strict_mode', '1');
     ini_set('session.cookie_path', '/');
     ini_set('session.cookie_domain', '');
     ini_set('session.cookie_lifetime', 0); // Cookie de sessão (expira ao fechar navegador)
-    
-    // Configurar Secure flag baseado em HTTPS
-    ini_set('session.cookie_secure', $isHttps ? '1' : '0');
-    
-    // SameSite só está disponível no PHP 7.3+
-    // Em versões anteriores, usar session_set_cookie_params
-    if (PHP_VERSION_ID >= 70300) {
-        // PHP 7.3+ suporta ini_set para SameSite
-        try {
-            if ($isHttps) {
-                ini_set('session.cookie_samesite', 'None');
-            } else {
-                ini_set('session.cookie_samesite', 'Lax');
-            }
-            error_log("Login - SameSite configured via ini_set");
-        } catch (Exception $e) {
-            error_log("Login - Failed to set SameSite via ini_set: " . $e->getMessage());
-        }
-    } else {
-        // PHP < 7.3: usar session_set_cookie_params antes de session_start
-        error_log("Login - PHP < 7.3, using session_set_cookie_params");
-    }
+    ini_set('session.cookie_secure', '0'); // 0 para HTTP local, 1 para HTTPS em produção
     
     // Configurar diretório de sessões (se não estiver configurado)
     $sessionPath = ini_get('session.save_path');

@@ -1,0 +1,36 @@
+COMPARAÇÃO DO CÓDIGO ATUAL
+==========================
+
+TABS PRESENTES:
+data-tab="categories"
+data-tab="companies"
+data-tab="dashboard"
+data-tab="history"
+data-tab="import"
+data-tab="items"
+data-tab="scanner"
+data-tab="sessions"
+data-tab="users"
+data-tab="warehouses"
+
+MODAIS PRESENTES:
+id="addItemModal"
+id="categoryModal"
+id="companyModal"
+id="countSetupModal"
+id="createSessionModal"
+id="itemModal"
+id="userModal"
+id="warehouseModal"
+
+ELEMENTOS DE TABS:
+id="categoriesTab"
+id="companiesTab"
+id="dashboardTab"
+id="historyTab"
+id="importTab"
+id="itemsTab"
+id="scannerTab"
+id="sessionsTab"
+id="usersTab"
+id="warehousesTab"

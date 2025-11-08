@@ -8,26 +8,35 @@ require_once __DIR__ . '/db.php';
 
 header('Content-Type: application/json; charset=utf-8');
 
-// Forçar configuração de cookies menos restritiva para teste
-ini_set('session.cookie_httponly', '0'); // Permitir acesso via JavaScript para teste
-ini_set('session.cookie_samesite', 'None'); // Permitir cross-site para teste
-ini_set('session.use_strict_mode', '1');
-ini_set('session.cookie_path', '/');
-ini_set('session.cookie_domain', '');
-
 // Detectar HTTPS
 $isHttps = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || 
            (!empty($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https') ||
            (!empty($_SERVER['HTTP_X_FORWARDED_SSL']) && $_SERVER['HTTP_X_FORWARDED_SSL'] === 'on');
 
-// SameSite=None requer Secure=1 (HTTPS)
+// Configurar cookies menos restritivos para teste
+ini_set('session.cookie_httponly', '0'); // Permitir acesso via JavaScript para teste
+ini_set('session.use_strict_mode', '1');
+ini_set('session.cookie_path', '/');
+ini_set('session.cookie_domain', '');
 ini_set('session.cookie_secure', $isHttps ? '1' : '0');
+
+// SameSite só está disponível no PHP 7.3+
+if (PHP_VERSION_ID >= 70300) {
+    try {
+        ini_set('session.cookie_samesite', 'None');
+    } catch (Exception $e) {
+        // Ignorar erro se não suportar
+    }
+}
 
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
 $response = [
+    'php_version' => PHP_VERSION,
+    'php_version_id' => PHP_VERSION_ID,
+    'samesite_support' => PHP_VERSION_ID >= 70300,
     'session_info' => [
         'session_id' => session_id(),
         'session_name' => session_name(),
@@ -42,7 +51,8 @@ $response = [
     'server_info' => [
         'HTTP_X_FORWARDED_PROTO' => $_SERVER['HTTP_X_FORWARDED_PROTO'] ?? 'not set',
         'HTTP_X_FORWARDED_SSL' => $_SERVER['HTTP_X_FORWARDED_SSL'] ?? 'not set',
-        'HTTPS' => $_SERVER['HTTPS'] ?? 'not set'
+        'HTTPS' => $_SERVER['HTTPS'] ?? 'not set',
+        'REQUEST_URI' => $_SERVER['REQUEST_URI'] ?? 'not set'
     ]
 ];
 

@@ -124,32 +124,11 @@ function requireAuth() {
     // Configurar cookies de sessão ANTES de session_start()
     // IMPORTANTE: ini_set só pode ser chamado ANTES de session_start()
     if (!$sessionAlreadyActive) {
-        // Detectar HTTPS automaticamente
-        $isHttps = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || 
-                   (!empty($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https') ||
-                   (!empty($_SERVER['HTTP_X_FORWARDED_SSL']) && $_SERVER['HTTP_X_FORWARDED_SSL'] === 'on');
-        
-        // Configurar cookies básicos primeiro
         ini_set('session.cookie_httponly', '1');
+        ini_set('session.cookie_samesite', 'Lax');
         ini_set('session.use_strict_mode', '1');
         ini_set('session.cookie_path', '/');
         ini_set('session.cookie_domain', '');
-        
-        // Configurar Secure flag baseado em HTTPS
-        ini_set('session.cookie_secure', $isHttps ? '1' : '0');
-        
-        // SameSite só está disponível no PHP 7.3+
-        if (PHP_VERSION_ID >= 70300) {
-            try {
-                if ($isHttps) {
-                    ini_set('session.cookie_samesite', 'None');
-                } else {
-                    ini_set('session.cookie_samesite', 'Lax');
-                }
-            } catch (Exception $e) {
-                error_log("db.php - Failed to set SameSite: " . $e->getMessage());
-            }
-        }
         
         // Configurar diretório de sessões (se não estiver configurado)
         $sessionPath = ini_get('session.save_path');
@@ -168,10 +147,7 @@ function requireAuth() {
     // Debug: verificar cookies recebidos
     $cookieName = session_name();
     $hasSessionCookie = isset($_COOKIE[$cookieName]);
-    $requestUri = $_SERVER['REQUEST_URI'] ?? 'unknown';
-    error_log("requireAuth - Session ID from cookie: " . ($hasSessionCookie ? $_COOKIE[$cookieName] : 'NOT SET') . 
-              ", Session ID active: " . session_id() . 
-              ", Request URI: " . $requestUri);
+    error_log("requireAuth - Session ID from cookie: " . ($hasSessionCookie ? $_COOKIE[$cookieName] : 'NOT SET') . ", Session ID active: " . session_id());
     
     // Verificar se a sessão está realmente ativa e tem dados
     if (!isset($_SESSION['user_id']) || !isset($_SESSION['username'])) {
@@ -181,18 +157,10 @@ function requireAuth() {
                   ", Cookie name: " . session_name() . 
                   ", Has cookie: " . ($hasSessionCookie ? 'YES' : 'NO') . 
                   ", User ID: " . ($_SESSION['user_id'] ?? 'not set') . 
-                  ", All cookies received: " . print_r($_COOKIE, true) .
-                  ", Session data: " . print_r($_SESSION, true) .
-                  ", Request URI: " . $requestUri);
+                  ", Session data: " . print_r($_SESSION, true));
         sendJsonResponse([
             'success' => false,
-            'message' => 'Autenticação necessária',
-            'debug' => [
-                'session_id' => session_id(),
-                'has_cookie' => $hasSessionCookie,
-                'cookie_name' => $cookieName,
-                'request_uri' => $requestUri
-            ]
+            'message' => 'Autenticação necessária'
         ], 401);
     }
 }
