@@ -1,20 +1,15 @@
-# Docker ignore
+# Docker ignore - MINIMAL para forçar detecção
 .git
 .gitignore
 README.md
-*.md
 node_modules
 .env
 .env.local
 .env.example
 db_data/
 *.zip
-scripts/
+scripts/requirements.txt
 docs/
-.do/
 fly.toml
 railway.json
 nixpacks.toml
-apache_app.conf
-php.ini
-.user.ini
