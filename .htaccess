@@ -1,5 +1,5 @@
 # DigitalOcean Apache Configuration
-# O Heroku buildpack usa /app como DocumentRoot
+# Buildpack Heroku usa PHP-FPM automaticamente
 DirectoryIndex index.php index.html
 
 # Habilitar mod_rewrite
