@@ -2611,8 +2611,17 @@ function closeCategoryModal() {
 async function saveCategory(e) {
     e.preventDefault();
     
-    const categoryId = document.getElementById('categoryId').value;
-    const name = document.getElementById('categoryName').value;
+    const categoryIdEl = document.getElementById('categoryId');
+    const categoryNameEl = document.getElementById('categoryName');
+    const categoryDescriptionEl = document.getElementById('categoryDescription');
+    
+    if (!categoryIdEl || !categoryNameEl || !categoryDescriptionEl) {
+        showToast('Elementos de categoria não encontrados', 'error');
+        return;
+    }
+    
+    const categoryId = categoryIdEl.value;
+    const name = categoryNameEl.value;
     
     // Validação
     const nameValidation = validateName(name);
