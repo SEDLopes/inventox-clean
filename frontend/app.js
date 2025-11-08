@@ -3203,6 +3203,12 @@ window.editUser = editUser;
 window.deleteUser = deleteUser;
 window.openUserModal = openUserModal;
 window.closeUserModal = closeUserModal;
+window.openCompanyModal = openCompanyModal;
+window.closeCompanyModal = closeCompanyModal;
+window.deleteCompany = deleteCompany;
+window.openWarehouseModal = openWarehouseModal;
+window.closeWarehouseModal = closeWarehouseModal;
+window.deleteWarehouse = deleteWarehouse;
 
 // ==========================================
 // Export Functions
