@@ -1055,8 +1055,13 @@ async function startScanner() {
 
         await startDecode();
         
-        placeholder.classList.add('hidden');
-        video.classList.remove('hidden');
+        // Mostrar o container do scanner e o vídeo
+        const scannerContainer = document.getElementById('scanner');
+        if (scannerContainer) {
+            scannerContainer.classList.remove('hidden');
+        }
+        if (placeholder) placeholder.classList.add('hidden');
+        if (video) video.classList.remove('hidden');
         document.getElementById('startScannerBtn').classList.add('hidden');
         document.getElementById('stopScannerBtn').classList.remove('hidden');
         const camWrap = document.getElementById('cameraSelectWrapper');
