@@ -119,23 +119,35 @@ try {
         // Tabela de empresas
         "CREATE TABLE IF NOT EXISTS companies (
             id INT AUTO_INCREMENT PRIMARY KEY,
-            name VARCHAR(200) NOT NULL,
+            name VARCHAR(255) NOT NULL UNIQUE,
+            code VARCHAR(50) UNIQUE,
             address TEXT,
             phone VARCHAR(20),
             email VARCHAR(100),
+            tax_id VARCHAR(50),
+            is_active BOOLEAN DEFAULT TRUE,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            INDEX idx_name (name),
+            INDEX idx_code (code)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
 
         // Tabela de armazéns
         "CREATE TABLE IF NOT EXISTS warehouses (
             id INT AUTO_INCREMENT PRIMARY KEY,
-            name VARCHAR(100) NOT NULL,
-            location VARCHAR(200),
-            company_id INT,
+            company_id INT NOT NULL,
+            name VARCHAR(255) NOT NULL,
+            code VARCHAR(50),
+            address TEXT,
+            location VARCHAR(255),
+            is_active BOOLEAN DEFAULT TRUE,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-            FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE SET NULL
+            FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE RESTRICT,
+            INDEX idx_company (company_id),
+            INDEX idx_name (name),
+            INDEX idx_code (code),
+            UNIQUE KEY unique_company_warehouse (company_id, code)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
 
         // Tabela de categorias
@@ -152,38 +164,97 @@ try {
         "CREATE TABLE IF NOT EXISTS items (
             id INT AUTO_INCREMENT PRIMARY KEY,
             barcode VARCHAR(100) NOT NULL UNIQUE,
-            name VARCHAR(200) NOT NULL,
+            name VARCHAR(255) NOT NULL,
             description TEXT,
             category_id INT,
-            unit_price DECIMAL(10,2) DEFAULT 0.00,
             quantity INT DEFAULT 0,
-            min_stock INT DEFAULT 0,
+            min_quantity INT DEFAULT 0,
+            unit_price DECIMAL(10, 2) DEFAULT 0.00,
             location VARCHAR(100),
+            supplier VARCHAR(100),
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
             FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE SET NULL,
             INDEX idx_barcode (barcode),
-            INDEX idx_name (name)
+            INDEX idx_name (name),
+            INDEX idx_category (category_id)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+
+        // Tabela de sessões de inventário
+        "CREATE TABLE IF NOT EXISTS inventory_sessions (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            name VARCHAR(255) NOT NULL,
+            description TEXT,
+            company_id INT NOT NULL,
+            warehouse_id INT NOT NULL,
+            user_id INT NOT NULL,
+            status ENUM('aberta', 'fechada', 'cancelada') DEFAULT 'aberta',
+            started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            finished_at TIMESTAMP NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE RESTRICT,
+            FOREIGN KEY (warehouse_id) REFERENCES warehouses(id) ON DELETE RESTRICT,
+            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE RESTRICT,
+            INDEX idx_user (user_id),
+            INDEX idx_company (company_id),
+            INDEX idx_warehouse (warehouse_id),
+            INDEX idx_status (status),
+            INDEX idx_started_at (started_at)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+
+        // Tabela de contagens de inventário
+        "CREATE TABLE IF NOT EXISTS inventory_counts (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            session_id INT NOT NULL,
+            item_id INT NOT NULL,
+            counted_quantity INT NOT NULL DEFAULT 0,
+            expected_quantity INT NOT NULL DEFAULT 0,
+            difference INT DEFAULT 0,
+            notes TEXT,
+            counted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (session_id) REFERENCES inventory_sessions(id) ON DELETE CASCADE,
+            FOREIGN KEY (item_id) REFERENCES items(id) ON DELETE CASCADE,
+            INDEX idx_session (session_id),
+            INDEX idx_item (item_id),
+            UNIQUE KEY unique_session_item (session_id, item_id)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+
+        // Tabela de movimentos de stock
+        "CREATE TABLE IF NOT EXISTS stock_movements (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            item_id INT NOT NULL,
+            movement_type ENUM('entrada', 'saida', 'ajuste', 'transferencia') NOT NULL,
+            quantity INT NOT NULL,
+            reason TEXT,
+            user_id INT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (item_id) REFERENCES items(id) ON DELETE CASCADE,
+            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL,
+            INDEX idx_item (item_id),
+            INDEX idx_type (movement_type),
+            INDEX idx_created_at (created_at)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
 
         // Inserir dados iniciais
-        "INSERT IGNORE INTO companies (id, name, address, phone, email) VALUES 
-        (1, 'InventoX Lda', 'Rua Principal, 123', '+351 123 456 789', 'info@inventox.com')",
+        "INSERT INTO users (username, email, password_hash, role) VALUES
+        ('admin', 'admin@inventox.local', '$2y$10\$mShlEzkOp7DNZupiaXsSn.MlQzaoOlqJauhrqlA.vakpY7Zpd7rLa', 'admin')
+        ON DUPLICATE KEY UPDATE username=username",
 
-        "INSERT IGNORE INTO warehouses (id, name, location, company_id) VALUES 
-        (1, 'Armazém Principal', 'Zona Industrial', 1)",
+        "INSERT INTO companies (name, code, is_active) VALUES
+        ('Empresa Padrão', 'EMP001', TRUE)
+        ON DUPLICATE KEY UPDATE name=name",
 
-        "INSERT IGNORE INTO categories (id, name, description) VALUES 
-        (1, 'Geral', 'Categoria geral para artigos diversos'),
-        (2, 'Electrónicos', 'Equipamentos electrónicos'),
-        (3, 'Alimentação', 'Produtos alimentares')",
+        "INSERT INTO warehouses (company_id, name, code, is_active) VALUES
+        (1, 'Armazém Principal', 'AR001', TRUE)
+        ON DUPLICATE KEY UPDATE name=name",
 
-        "INSERT INTO users (username, email, password_hash, role, is_active) VALUES 
-        ('admin', 'admin@inventox.com', '$2y$10\$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'admin', 1)
-        ON DUPLICATE KEY UPDATE 
-        password_hash = VALUES(password_hash),
-        is_active = 1,
-        role = 'admin'"
+        "INSERT INTO categories (name, description) VALUES
+        ('Eletrónicos', 'Produtos eletrónicos e componentes'),
+        ('Informática', 'Equipamentos e acessórios de informática'),
+        ('Ferramentas', 'Ferramentas e equipamentos'),
+        ('Material de Escritório', 'Material de escritório e papelaria')
+        ON DUPLICATE KEY UPDATE name=name"
     ];
 
     $results = [];
