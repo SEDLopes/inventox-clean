@@ -24,10 +24,24 @@ try {
             
             if ($itemId) {
                 // Obter artigo específico por ID
+                // Verificar quais colunas existem antes de fazer SELECT
+                $checkColumns = $db->query("SHOW COLUMNS FROM items");
+                $itemColumns = $checkColumns->fetchAll(PDO::FETCH_COLUMN);
+                
+                $selectFields = ['i.id', 'i.barcode', 'i.name'];
+                if (in_array('description', $itemColumns)) $selectFields[] = 'i.description';
+                if (in_array('category_id', $itemColumns)) $selectFields[] = 'i.category_id';
+                if (in_array('quantity', $itemColumns)) $selectFields[] = 'i.quantity';
+                if (in_array('min_quantity', $itemColumns)) $selectFields[] = 'i.min_quantity';
+                if (in_array('unit_price', $itemColumns)) $selectFields[] = 'i.unit_price';
+                if (in_array('location', $itemColumns)) $selectFields[] = 'i.location';
+                if (in_array('supplier', $itemColumns)) $selectFields[] = 'i.supplier';
+                if (in_array('created_at', $itemColumns)) $selectFields[] = 'i.created_at';
+                if (in_array('updated_at', $itemColumns)) $selectFields[] = 'i.updated_at';
+                $selectFields[] = 'c.name as category_name';
+                
                 $stmt = $db->prepare("
-                    SELECT 
-                        i.*,
-                        c.name as category_name
+                    SELECT " . implode(', ', $selectFields) . "
                     FROM items i
                     LEFT JOIN categories c ON i.category_id = c.id
                     WHERE i.id = :id
@@ -48,10 +62,24 @@ try {
                 ]);
             } elseif ($barcode) {
                 // Obter artigo por código de barras (já existe get_item.php, mas podemos usar este também)
+                // Verificar quais colunas existem antes de fazer SELECT
+                $checkColumns = $db->query("SHOW COLUMNS FROM items");
+                $itemColumns = $checkColumns->fetchAll(PDO::FETCH_COLUMN);
+                
+                $selectFields = ['i.id', 'i.barcode', 'i.name'];
+                if (in_array('description', $itemColumns)) $selectFields[] = 'i.description';
+                if (in_array('category_id', $itemColumns)) $selectFields[] = 'i.category_id';
+                if (in_array('quantity', $itemColumns)) $selectFields[] = 'i.quantity';
+                if (in_array('min_quantity', $itemColumns)) $selectFields[] = 'i.min_quantity';
+                if (in_array('unit_price', $itemColumns)) $selectFields[] = 'i.unit_price';
+                if (in_array('location', $itemColumns)) $selectFields[] = 'i.location';
+                if (in_array('supplier', $itemColumns)) $selectFields[] = 'i.supplier';
+                if (in_array('created_at', $itemColumns)) $selectFields[] = 'i.created_at';
+                if (in_array('updated_at', $itemColumns)) $selectFields[] = 'i.updated_at';
+                $selectFields[] = 'c.name as category_name';
+                
                 $stmt = $db->prepare("
-                    SELECT 
-                        i.*,
-                        c.name as category_name
+                    SELECT " . implode(', ', $selectFields) . "
                     FROM items i
                     LEFT JOIN categories c ON i.category_id = c.id
                     WHERE i.barcode = :barcode

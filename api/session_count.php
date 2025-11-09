@@ -23,16 +23,32 @@ try {
             
             if ($sessionId) {
                 // Obter sessão específica com contagens, empresa e armazém
+                // Verificar quais colunas existem antes de fazer SELECT
+                $checkColumns = $db->query("SHOW COLUMNS FROM companies");
+                $companyColumns = $checkColumns->fetchAll(PDO::FETCH_COLUMN);
+                $hasCompanyCode = in_array('code', $companyColumns);
+                
+                $checkColumns = $db->query("SHOW COLUMNS FROM warehouses");
+                $warehouseColumns = $checkColumns->fetchAll(PDO::FETCH_COLUMN);
+                $hasWarehouseCode = in_array('code', $warehouseColumns);
+                
+                $selectFields = [
+                    's.*',
+                    'u.username as created_by',
+                    'c.name as company_name'
+                ];
+                if ($hasCompanyCode) {
+                    $selectFields[] = 'c.code as company_code';
+                }
+                $selectFields[] = 'w.name as warehouse_name';
+                if ($hasWarehouseCode) {
+                    $selectFields[] = 'w.code as warehouse_code';
+                }
+                $selectFields[] = 'COUNT(co.id) as total_counts';
+                $selectFields[] = 'COUNT(CASE WHEN co.difference != 0 THEN 1 END) as discrepancies';
+                
                 $stmt = $db->prepare("
-                    SELECT 
-                        s.*,
-                        u.username as created_by,
-                        c.name as company_name,
-                        c.code as company_code,
-                        w.name as warehouse_name,
-                        w.code as warehouse_code,
-                        COUNT(co.id) as total_counts,
-                        COUNT(CASE WHEN co.difference != 0 THEN 1 END) as discrepancies
+                    SELECT " . implode(', ', $selectFields) . "
                     FROM inventory_sessions s
                     LEFT JOIN users u ON s.user_id = u.id
                     LEFT JOIN companies c ON s.company_id = c.id
@@ -74,15 +90,31 @@ try {
                 ]);
             } else {
                 // Listar todas as sessões com empresa e armazém
+                // Verificar quais colunas existem antes de fazer SELECT
+                $checkColumns = $db->query("SHOW COLUMNS FROM companies");
+                $companyColumns = $checkColumns->fetchAll(PDO::FETCH_COLUMN);
+                $hasCompanyCode = in_array('code', $companyColumns);
+                
+                $checkColumns = $db->query("SHOW COLUMNS FROM warehouses");
+                $warehouseColumns = $checkColumns->fetchAll(PDO::FETCH_COLUMN);
+                $hasWarehouseCode = in_array('code', $warehouseColumns);
+                
+                $selectFields = [
+                    's.*',
+                    'u.username as created_by',
+                    'c.name as company_name'
+                ];
+                if ($hasCompanyCode) {
+                    $selectFields[] = 'c.code as company_code';
+                }
+                $selectFields[] = 'w.name as warehouse_name';
+                if ($hasWarehouseCode) {
+                    $selectFields[] = 'w.code as warehouse_code';
+                }
+                $selectFields[] = 'COUNT(co.id) as total_counts';
+                
                 $stmt = $db->prepare("
-                    SELECT 
-                        s.*,
-                        u.username as created_by,
-                        c.name as company_name,
-                        c.code as company_code,
-                        w.name as warehouse_name,
-                        w.code as warehouse_code,
-                        COUNT(co.id) as total_counts
+                    SELECT " . implode(', ', $selectFields) . "
                     FROM inventory_sessions s
                     LEFT JOIN users u ON s.user_id = u.id
                     LEFT JOIN companies c ON s.company_id = c.id
