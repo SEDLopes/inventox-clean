@@ -1129,9 +1129,12 @@ function stopScanner() {
     
     const video = document.getElementById('scannerVideo');
     const placeholder = document.getElementById('scannerPlaceholder');
+    const scannerContainer = document.getElementById('scanner');
     const startBtn = document.getElementById('startScannerBtn');
     const stopBtn = document.getElementById('stopScannerBtn');
     
+    // Ocultar o container do scanner e o vídeo
+    if (scannerContainer) scannerContainer.classList.add('hidden');
     if (video) video.classList.add('hidden');
     if (placeholder) placeholder.classList.remove('hidden');
     if (startBtn) startBtn.classList.remove('hidden');
