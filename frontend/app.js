@@ -1453,7 +1453,7 @@ async function saveCount() {
                                 name: autoSessionName,
                                 description: 'Sessão criada automaticamente'
                             }),
-                            method: 'GET'
+                            credentials: 'include'
                         });
                         
                         if (createResponse.ok) {
