@@ -1263,9 +1263,9 @@ async function handleBarcode(barcode) {
         
         // Buscar item pelo barcode
         const response = await fetch(`${API_BASE}/get_item.php?barcode=${encodeURIComponent(barcode)}`, {
+            method: 'GET',
             credentials: 'include',
-            headers: { 'Content-Type': 'application/json' },
-            method: 'GET' // Enviar cookies de sessão
+            headers: { 'Content-Type': 'application/json' }
         });
         
         if (!response.ok) {
