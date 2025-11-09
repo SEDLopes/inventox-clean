@@ -1,6 +1,4 @@
-# Docker Compose para forçar detecção Docker
-version: '3.8'
-
+# Docker Compose para InventoX
 services:
   web:
     build: .
