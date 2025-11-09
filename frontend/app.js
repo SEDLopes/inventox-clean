@@ -1347,8 +1347,10 @@ async function handleBarcode(barcode) {
 async function createSession() {
     const nameEl = document.getElementById('newSessionName');
     const descriptionEl = document.getElementById('newSessionDescription');
+    const companyEl = document.getElementById('newSessionCompany');
+    const warehouseEl = document.getElementById('newSessionWarehouse');
     
-    if (!nameEl || !descriptionEl) {
+    if (!nameEl || !descriptionEl || !companyEl || !warehouseEl) {
         console.error('Elementos do formulário de sessão não encontrados');
         showToast('Erro: Formulário não encontrado', 'error');
         return;
@@ -1356,8 +1358,15 @@ async function createSession() {
     
     const name = nameEl.value.trim();
     const description = descriptionEl.value.trim();
+    const companyId = parseInt(companyEl.value);
+    const warehouseId = parseInt(warehouseEl.value);
     
     // Validação básica - só validar se o formulário foi realmente submetido
+    if (!companyId || !warehouseId) {
+        showToast('Empresa e armazém são obrigatórios', 'error');
+        return;
+    }
+    
     if (!name || name.length === 0) {
         // Focar no campo de nome para indicar o erro
         nameEl.focus();
@@ -1375,7 +1384,12 @@ async function createSession() {
         const response = await fetch(`${API_BASE}/session_count.php`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ name, description }),
+            body: JSON.stringify({ 
+                name, 
+                description,
+                company_id: companyId,
+                warehouse_id: warehouseId
+            }),
             credentials: 'include'
         });
         
