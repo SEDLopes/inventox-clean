@@ -154,9 +154,10 @@ function requireAuth() {
         }
         
         // Configurar diretório de sessões (se não estiver configurado)
+        // IMPORTANTE: Usar o mesmo diretório que login.php usa
         $sessionPath = ini_get('session.save_path');
         if (empty($sessionPath) || !is_dir($sessionPath) || !is_writable($sessionPath)) {
-            // Tentar vários diretórios possíveis
+            // Tentar vários diretórios possíveis (na mesma ordem que login.php)
             $possiblePaths = [
                 '/var/lib/php/sessions',  // Produção (Docker)
                 sys_get_temp_dir() . '/php_sessions',  // Desenvolvimento local
@@ -175,8 +176,15 @@ function requireAuth() {
             }
         }
         
-        // Iniciar sessão
+        // CRÍTICO: Verificar se há um cookie de sessão antes de iniciar
+        // Se houver cookie, usar o ID da sessão do cookie
+        $sessionId = $_COOKIE[session_name()] ?? null;
+        
+        // Iniciar sessão (isso vai ler o cookie PHPSESSID se existir)
         session_start();
+        
+        // Se havia um cookie mas a sessão está vazia, pode ser que o arquivo não exista
+        // Nesse caso, não podemos fazer nada - a sessão expirou ou foi deletada
     }
     
     // Verificar se a sessão está realmente ativa e tem dados
