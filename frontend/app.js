@@ -1029,11 +1029,21 @@ async function startScanner() {
                     }
                 } catch (_) {}
             }
-            if (err && err.name && /NotFound|Checksum|Format/.test(err.name)) {
-                // erros esperados do fluxo de leitura contínua — ignorar
-            } else if (err) {
-                // outros erros: logar
-                console.debug('Decode callback error:', err);
+            // Ignorar erros esperados do fluxo de leitura contínua
+            if (err) {
+                const errorName = err.name || '';
+                const errorMessage = err.message || err.toString() || '';
+                
+                // Erros esperados quando não há código de barras visível
+                const isExpectedError = 
+                    /NotFound|Checksum|Format/.test(errorName) ||
+                    /No MultiFormat Readers/.test(errorMessage) ||
+                    /No MultiFormat Readers/.test(errorName);
+                
+                if (!isExpectedError) {
+                    // Apenas logar erros inesperados
+                    logDebug('Decode callback error:', err);
+                }
             }
         };
 
