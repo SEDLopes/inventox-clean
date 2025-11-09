@@ -1,10 +1,19 @@
 /**
  * InventoX - Frontend Application
  * Gestão de Inventário com Scanner de Código de Barras
+ * 
+ * Versão: 1.1.0
+ * Última atualização: 2024-11-08
  */
 
 // Base da API: usar o mesmo domínio/host da app (funciona em dev e produção)
 const API_BASE = `${location.origin.replace(/\/$/, '')}/api`;
+
+// Usar logger condicional se disponível
+const log = window.logger || console;
+const logError = window.logger?.error || console.error;
+const logWarn = window.logger?.warn || console.warn;
+const logDebug = window.logger?.debug || (() => {});
 let currentSessionId = null;
 let currentItemId = null;
 let currentBarcode = null;
@@ -60,12 +69,12 @@ async function checkAuth() {
                 return;
             } else {
                 // Sessão inválida, limpar dados locais
-                console.log('Sessão expirada, limpando dados locais');
+                log.debug('Sessão expirada, limpando dados locais');
                 sessionStorage.clear();
             }
         } catch (error) {
             // Erro na verificação, limpar dados locais
-            console.log('Erro ao verificar sessão, limpando dados locais');
+            log.debug('Erro ao verificar sessão, limpando dados locais');
             sessionStorage.clear();
         }
     }
@@ -148,11 +157,11 @@ function initEventListeners() {
     const switchBtn = document.getElementById('switchCameraBtn');
     if (switchBtn) {
         switchBtn.addEventListener('click', async () => {
-            console.log('Switch camera clicked - current facing mode:', currentFacingMode);
-            // Em mobile, sempre alternar por facingMode (mais confiável)
-            if (isMobileDevice) {
-                const newFacingMode = currentFacingMode === 'environment' ? 'user' : 'environment';
-                console.log('Switching to facing mode:', newFacingMode);
+                logDebug('Switch camera clicked - current facing mode:', currentFacingMode);
+                // Em mobile, sempre alternar por facingMode (mais confiável)
+                if (isMobileDevice) {
+                    const newFacingMode = currentFacingMode === 'environment' ? 'user' : 'environment';
+                    logDebug('Switching to facing mode:', newFacingMode);
                 await switchCamera(null, newFacingMode);
             } else if (availableCameras && availableCameras.length > 1) {
                 const idx = availableCameras.findIndex(d => d.deviceId === currentCameraId);
@@ -312,12 +321,12 @@ function initEventListeners() {
 function initZXing() {
     try {
         if (typeof ZXing === 'undefined' || !ZXing.BrowserMultiFormatReader) {
-            console.warn('ZXing library não foi carregada corretamente');
+            logWarn('ZXing library não foi carregada corretamente');
             return;
         }
         codeReader = new ZXing.BrowserMultiFormatReader();
     } catch (e) {
-        console.error('Erro ao inicializar ZXing:', e);
+        logError('Erro ao inicializar ZXing:', e);
         // Não mostrar toast aqui para evitar erro antes do DOM estar pronto
     }
 }
@@ -353,7 +362,7 @@ function detectMobileDevice() {
         document.body.classList.add('mobile-screen');
     }
     
-    console.log('Dispositivo móvel detectado:', isMobileDevice, 'iOS:', isIOSDevice);
+    logDebug('Dispositivo móvel detectado:', isMobileDevice, 'iOS:', isIOSDevice);
 }
 
 // Solicitar permissão de câmara em dispositivos móveis
@@ -361,7 +370,7 @@ async function requestCameraPermissionOnMobile() {
     if (!isMobileDevice) return;
     
     try {
-        console.log('Solicitando permissão de câmara para dispositivo móvel...');
+        logDebug('Solicitando permissão de câmara para dispositivo móvel...');
         
         // Forçar câmara traseira em mobile
         const constraints = {
@@ -376,7 +385,7 @@ async function requestCameraPermissionOnMobile() {
         try {
             stream = await navigator.mediaDevices.getUserMedia(constraints);
         } catch (exactError) {
-            console.warn('Exact environment failed, trying ideal:', exactError);
+            logWarn('Exact environment failed, trying ideal:', exactError);
             // Fallback para ideal se exact falhar
             constraints.video.facingMode = { ideal: 'environment' };
             stream = await navigator.mediaDevices.getUserMedia(constraints);
@@ -386,7 +395,7 @@ async function requestCameraPermissionOnMobile() {
         cameraPermissionGranted = true;
         stream.getTracks().forEach(track => track.stop());
         
-        console.log('Permissão de câmara concedida');
+        logDebug('Permissão de câmara concedida');
         
         // Mostrar feedback visual
         showToast('Câmara pronta para digitalização', 'success');
@@ -395,7 +404,7 @@ async function requestCameraPermissionOnMobile() {
         updateCameraUI();
         
     } catch (error) {
-        console.error('Erro ao solicitar permissão de câmara:', error);
+        logError('Erro ao solicitar permissão de câmara:', error);
         cameraPermissionGranted = false;
         
         let message = 'Permissão de câmara necessária para digitalização';
@@ -466,6 +475,7 @@ async function handleLogin(e) {
         const response = await fetch(`${API_BASE}/login.php`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
+            credentials: 'include', // IMPORTANTE: Enviar cookies de sessão
             body: JSON.stringify({ username, password })
         });
         
@@ -495,7 +505,7 @@ async function handleLogin(e) {
             // Isso é normal e esperado - o cookie será enviado automaticamente nas requisições
             // Verificar se cookies foram recebidos (pode estar vazio se HttpOnly)
             const cookies = document.cookie;
-            console.log('Cookies após login (pode estar vazio se HttpOnly):', cookies);
+            logDebug('Cookies após login (pode estar vazio se HttpOnly):', cookies);
             
             // Armazenar dados no sessionStorage para referência
             sessionStorage.setItem('username', data.user.username);
@@ -517,7 +527,7 @@ async function handleLogin(e) {
         hideLoading();
         const errorMessage = error.message || 'Erro ao fazer login';
         showToast(errorMessage, 'error');
-        console.error('Erro no login:', error);
+        logError('Erro no login:', error);
         const loginError = document.getElementById('loginError');
         if (loginError) {
             loginError.textContent = errorMessage;
@@ -630,7 +640,7 @@ async function loadCompaniesForSetup() {
             });
         }
     } catch (error) {
-        console.error('Erro ao carregar empresas:', error);
+        logError('Erro ao carregar empresas:', error);
         showToast('Erro ao carregar empresas', 'error');
     }
 }
@@ -681,7 +691,7 @@ async function handleCompanyChange() {
         sessionSelect.innerHTML = '<option value="">Primeiro selecione empresa e armazém</option>';
         sessionSelect.disabled = true;
     } catch (error) {
-        console.error('Erro ao carregar armazéns:', error);
+        logError('Erro ao carregar armazéns:', error);
         showToast('Erro ao carregar armazéns', 'error');
     }
 }
@@ -806,7 +816,7 @@ async function confirmCountSetup() {
                 return;
             }
         } catch (error) {
-            console.error('Erro ao criar sessão:', error);
+            logError('Erro ao criar sessão:', error);
             showToast('Erro ao criar sessão', 'error');
             hideLoading();
             return;
