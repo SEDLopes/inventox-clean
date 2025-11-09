@@ -1786,7 +1786,7 @@ async function loadSessions() {
 }
 
 // Carregar Info da Sessão
-async function loadSessionInfo(sessionId) {
+async function loadSessionInfo(sessionId, showDetails = false) {
     currentSessionId = sessionId;
     
     try {
@@ -1826,7 +1826,11 @@ async function loadSessionInfo(sessionId) {
             }
             
             // Mostrar detalhes da sessão apenas se solicitado
-            // (não mostrar quando o scanner é iniciado)
+            if (showDetails) {
+                setTimeout(() => {
+                    showSessionDetails(session, session.counts || []);
+                }, 100);
+            }
         }
     } catch (error) {
         console.error('Erro ao carregar sessão:', error);
