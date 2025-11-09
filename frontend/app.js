@@ -905,7 +905,7 @@ async function confirmCountSetup() {
 
 // Iniciar Scanner (após configuração)
 async function startScanner() {
-    console.log('startScanner called - isMobileDevice:', isMobileDevice, 'isIOSDevice:', isIOSDevice);
+    logDebug('startScanner called - isMobileDevice:', isMobileDevice, 'isIOSDevice:', isIOSDevice);
     if (!codeReader || typeof ZXing === 'undefined') {
         showToast('Scanner não disponível. Certifique-se que a biblioteca ZXing foi carregada.', 'error');
         return;
