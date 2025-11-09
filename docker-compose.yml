@@ -23,7 +23,7 @@ services:
       MYSQL_USER: inventox
       MYSQL_PASSWORD: inventox123
     ports:
-      - "3306:3306"
+      - "3307:3306"  # Porta 3307 no host para evitar conflito com MySQL nativo
     volumes:
       - db_data:/var/lib/mysql
 
