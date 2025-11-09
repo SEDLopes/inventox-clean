@@ -242,6 +242,12 @@ function initEventListeners() {
         });
     }
     
+    // Event listener para mudança de empresa no modal de criação de sessão
+    const newSessionCompany = document.getElementById('newSessionCompany');
+    if (newSessionCompany) {
+        newSessionCompany.addEventListener('change', handleNewSessionCompanyChange);
+    }
+    
     const sessionSelect = document.getElementById('sessionSelect');
     if (sessionSelect) {
         sessionSelect.addEventListener('change', (e) => {
