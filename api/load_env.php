@@ -124,22 +124,59 @@ function loadEnv($envPath = null) {
         }
 
         // DigitalOcean Managed Database - variáveis individuais
+        // Tentar múltiplas formas de aceder às variáveis do DigitalOcean
         if (!$envVars['DB_HOST'] || strpos($envVars['DB_HOST'], '${') !== false) {
-            $doVars = [
-                'DB_HOST' => $_ENV['inventox-db.HOSTNAME'] ?? $_SERVER['inventox-db.HOSTNAME'] ?? getenv('inventox-db.HOSTNAME'),
-                'DB_NAME' => $_ENV['inventox-db.DATABASE'] ?? $_SERVER['inventox-db.DATABASE'] ?? getenv('inventox-db.DATABASE'),
-                'DB_USER' => $_ENV['inventox-db.USERNAME'] ?? $_SERVER['inventox-db.USERNAME'] ?? getenv('inventox-db.USERNAME'),
-                'DB_PASS' => $_ENV['inventox-db.PASSWORD'] ?? $_SERVER['inventox-db.PASSWORD'] ?? getenv('inventox-db.PASSWORD'),
-                'DB_PORT' => $_ENV['inventox-db.PORT'] ?? $_SERVER['inventox-db.PORT'] ?? getenv('inventox-db.PORT')
+            // Lista de possíveis nomes de variáveis do DigitalOcean
+            $doVarPatterns = [
+                'DB_HOST' => [
+                    'inventox-db.HOSTNAME',
+                    'INVENTOX_DB_HOSTNAME',
+                    'DATABASE_HOST',
+                    'DB_HOSTNAME',
+                    'MYSQL_HOST',
+                    'MYSQL_HOSTNAME'
+                ],
+                'DB_NAME' => [
+                    'inventox-db.DATABASE',
+                    'INVENTOX_DB_DATABASE',
+                    'DATABASE_NAME',
+                    'DB_DATABASE',
+                    'MYSQL_DATABASE',
+                    'MYSQL_DB'
+                ],
+                'DB_USER' => [
+                    'inventox-db.USERNAME',
+                    'INVENTOX_DB_USERNAME',
+                    'DATABASE_USER',
+                    'DB_USERNAME',
+                    'MYSQL_USER',
+                    'MYSQL_USERNAME'
+                ],
+                'DB_PASS' => [
+                    'inventox-db.PASSWORD',
+                    'INVENTOX_DB_PASSWORD',
+                    'DATABASE_PASSWORD',
+                    'DB_PASSWORD',
+                    'MYSQL_PASSWORD',
+                    'MYSQL_PASS'
+                ],
+                'DB_PORT' => [
+                    'inventox-db.PORT',
+                    'INVENTOX_DB_PORT',
+                    'DATABASE_PORT',
+                    'DB_PORT',
+                    'MYSQL_PORT'
+                ]
             ];
 
-            foreach ($doVars as $key => $value) {
-                if ($value) {
-                    $resolved = resolveDoTemplate($value);
-                    if ($resolved && $resolved !== $value) {
-                        $envVars[$key] = $resolved;
-                    } elseif (!$envVars[$key] || strpos($envVars[$key], '${') !== false) {
-                        $envVars[$key] = $resolved;
+            foreach ($doVarPatterns as $key => $patterns) {
+                if (!$envVars[$key] || strpos($envVars[$key], '${') !== false) {
+                    foreach ($patterns as $pattern) {
+                        $value = $_ENV[$pattern] ?? $_SERVER[$pattern] ?? getenv($pattern);
+                        if ($value && $value !== false && strpos($value, '${') === false) {
+                            $envVars[$key] = $value;
+                            break; // Encontrou valor válido, parar de procurar
+                        }
                     }
                 }
             }

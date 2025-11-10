@@ -1,8 +1,12 @@
-DB_HOST=${inventox-db.HOSTNAME}
-DB_NAME=${inventox-db.DATABASE}
-DB_USER=${inventox-db.USERNAME}
-DB_PASS=${inventox-db.PASSWORD}
-DB_PORT=${inventox-db.PORT}
+# ⚠️ IMPORTANTE: Substitua os valores abaixo pelos valores REAIS da sua base de dados!
+# Obtenha os valores em: Apps → inventox-clean → Database → inventox-db
+# Veja o guia completo: OBTER_VALORES_DB.md
+
+# Substitua estes valores pelos valores reais:
+DB_HOST=inventox-db-do-user-12345678-0.b.db.ondigitalocean.com
+DB_NAME=inventox
+DB_USER=doadmin
+DB_PASS=AVNS_xxxxxxxxxxxxx
+DB_PORT=25060
 DEBUG_MODE=false
 ENVIRONMENT=production
-
