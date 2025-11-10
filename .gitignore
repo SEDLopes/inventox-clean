@@ -1,0 +1,42 @@
+# Environment
+.env
+.env.local
+.env.production
+
+# Database
+db_data/
+*.sql
+
+# Uploads
+uploads/*
+!uploads/.gitkeep
+
+# Logs
+*.log
+logs/
+
+# Cache
+cache/
+tmp/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Dependencies
+node_modules/
+vendor/
+
+# Build
+dist/
+build/
+
+# Testing
+cookies.txt
+test_*.php

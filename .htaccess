@@ -1,0 +1,67 @@
+# InventoX - Apache Configuration
+# Configuração otimizada para produção
+
+DirectoryIndex index.php index.html
+
+# Rewrite Engine
+RewriteEngine On
+
+# Root para index.php
+RewriteCond %{REQUEST_URI} ^/$
+RewriteRule ^$ index.php [L]
+
+# API direta - preservar query string completa
+RewriteCond %{REQUEST_URI} ^/api/
+RewriteRule ^api/(.*)$ api/$1 [L,QSA,NE]
+
+# Frontend SPA
+RewriteCond %{REQUEST_URI} ^/frontend/
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteRule ^frontend/.*$ /frontend/index.html [L]
+
+# Security Headers
+<IfModule mod_headers.c>
+    # Prevenir clickjacking
+    Header always set X-Frame-Options "SAMEORIGIN"
+    
+    # Prevenir MIME type sniffing
+    Header always set X-Content-Type-Options "nosniff"
+    
+    # XSS Protection
+    Header always set X-XSS-Protection "1; mode=block"
+    
+    # Referrer Policy
+    Header always set Referrer-Policy "strict-origin-when-cross-origin"
+    
+    # CORS - Apenas para requisições cross-origin (se necessário)
+    # Para same-origin requests, CORS não é necessário
+    # Se precisar de CORS, descomente e configure a origem específica
+    # SetEnvIfNoCase Origin "^(.+)$" CORS_ORIGIN=$1
+    # Header always set Access-Control-Allow-Origin "%{CORS_ORIGIN}e" env=CORS_ORIGIN
+    # Header always set Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS"
+    # Header always set Access-Control-Allow-Headers "Content-Type, Authorization, X-CSRF-Token, X-Requested-With"
+    # Header always set Access-Control-Allow-Credentials "true"
+    # Header always set Access-Control-Max-Age "3600"
+    
+    # Cache headers para assets estáticos
+    <FilesMatch "\.(jpg|jpeg|png|gif|ico|svg|css|js|woff|woff2|ttf|eot)$">
+        Header set Cache-Control "public, max-age=31536000, immutable"
+    </FilesMatch>
+    
+    # No cache para páginas dinâmicas
+    <FilesMatch "\.(php|html)$">
+        Header set Cache-Control "no-cache, no-store, must-revalidate"
+        Header set Pragma "no-cache"
+        Header set Expires "0"
+    </FilesMatch>
+</IfModule>
+
+# Compressão gzip
+<IfModule mod_deflate.c>
+    AddOutputFilterByType DEFLATE text/html text/plain text/xml text/css text/javascript application/javascript application/json application/xml
+</IfModule>
+
+# Bloquear acesso a arquivos sensíveis
+<FilesMatch "\.(env|log|ini|conf|bak|backup|old|tmp)$">
+    Require all denied
+</FilesMatch>

@@ -1,0 +1,33 @@
+# Docker Compose para InventoX
+services:
+  web:
+    build: .
+    ports:
+      - "8080:80"  # Porta 8080 no host para evitar conflito
+    environment:
+      - DB_HOST=db
+      - DB_NAME=inventox
+      - DB_USER=inventox
+      - DB_PASS=inventox123
+      - DB_PORT=3306
+    volumes:
+      - ./uploads:/var/www/html/uploads
+      - ./api:/var/www/html/api
+      - ./frontend:/var/www/html/frontend
+    depends_on:
+      - db
+
+  db:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: inventox
+      MYSQL_USER: inventox
+      MYSQL_PASSWORD: inventox123
+    ports:
+      - "3307:3306"  # Porta 3307 no host para evitar conflito com MySQL nativo
+    volumes:
+      - db_data:/var/lib/mysql
+
+volumes:
+  db_data:
