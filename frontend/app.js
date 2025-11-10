@@ -2066,14 +2066,20 @@ function showSessionDetails(session, counts) {
         ` : '<div class="mt-6 text-center text-gray-500">Nenhuma contagem realizada ainda.</div>'}
         
         <!-- Ações -->
-        <div class="mt-6 flex space-x-3">
+        <div class="mt-6 flex space-x-3 flex-wrap gap-2">
+            ${session.status === 'aberta' ? `
+                <button onclick="closeSession(${session.id})" 
+                        class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-semibold transition-colors">
+                    🔒 Fechar Sessão
+                </button>
+            ` : ''}
             <a href="${API_BASE}/export_session.php?id=${session.id}&format=csv" 
                class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg">
-                Exportar CSV
+                📥 Exportar CSV
             </a>
             <a href="${API_BASE}/export_session.php?id=${session.id}&format=json" 
                class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg">
-                Exportar JSON
+                📥 Exportar JSON
             </a>
         </div>
     `;
@@ -2088,6 +2094,62 @@ function closeSessionDetails() {
         detailsCard.classList.add('hidden');
     }
 }
+
+// Fechar sessão de inventário
+async function closeSession(sessionId) {
+    if (!sessionId) {
+        showToast('ID da sessão não fornecido', 'error');
+        return;
+    }
+
+    // Confirmar ação
+    if (!confirm('Tem certeza que deseja fechar esta sessão? Esta ação não pode ser desfeita.')) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`${API_BASE}/session_count.php`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            credentials: 'include',
+            body: JSON.stringify({
+                session_id: sessionId,
+                status: 'fechada'
+            })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            showToast('Sessão fechada com sucesso!', 'success');
+            
+            // Recarregar detalhes da sessão para atualizar o status
+            await loadSessionInfo(sessionId, true);
+            
+            // Recarregar lista de sessões
+            await loadSessions();
+            
+            // Se a sessão fechada era a sessão atual do scanner, limpar seleção
+            if (currentSessionId === sessionId) {
+                currentSessionId = null;
+                const sessionSelect = document.getElementById('sessionSelect');
+                if (sessionSelect) {
+                    sessionSelect.value = '';
+                }
+            }
+        } else {
+            showToast(data.message || 'Erro ao fechar sessão', 'error');
+        }
+    } catch (error) {
+        console.error('Erro ao fechar sessão:', error);
+        showToast('Erro ao fechar sessão. Tente novamente.', 'error');
+    }
+}
+
+// Tornar função global para uso em onclick
+window.closeSession = closeSession;
 
 // Fazer Upload de Ficheiro
 async function uploadFile() {
