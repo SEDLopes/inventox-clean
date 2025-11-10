@@ -1,0 +1,42 @@
+# DigitalOcean App Platform - Environment Variables
+# Copie e cole no Bulk Editor do DigitalOcean
+
+# ============================================
+# OPÇÃO 1: Com Referências Automáticas (Recomendado)
+# ============================================
+# Use este formato se a base de dados "inventox-db" estiver configurada
+# O DigitalOcean substituirá automaticamente ${inventox-db.*} pelos valores reais
+
+DB_HOST=${inventox-db.HOSTNAME}
+DB_NAME=${inventox-db.DATABASE}
+DB_USER=${inventox-db.USERNAME}
+DB_PASS=${inventox-db.PASSWORD}
+DB_PORT=${inventox-db.PORT}
+DEBUG_MODE=false
+ENVIRONMENT=production
+
+# ============================================
+# OPÇÃO 2: Valores Manuais (Se Opção 1 não funcionar)
+# ============================================
+# Substitua os valores abaixo pelos valores reais da sua base de dados
+# Encontre-os em: Apps → inventox-clean → Database → inventox-db
+
+# DB_HOST=inventox-db-do-user-12345678-0.b.db.ondigitalocean.com
+# DB_NAME=inventox
+# DB_USER=doadmin
+# DB_PASS=AVNS_xxxxxxxxxxxxx
+# DB_PORT=25060
+# DEBUG_MODE=false
+# ENVIRONMENT=production
+
+# ============================================
+# INSTRUÇÕES:
+# ============================================
+# 1. Ir para: Apps → inventox-clean → Settings
+# 2. Clicar em "Environment Variables"
+# 3. Clicar em "Bulk Editor"
+# 4. Copiar as linhas da OPÇÃO 1 (sem os comentários #)
+# 5. Colar no editor
+# 6. Clicar em "Save"
+# 7. Fazer redeploy da aplicação
+

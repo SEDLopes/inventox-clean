@@ -1,0 +1,8 @@
+DB_HOST=${inventox-db.HOSTNAME}
+DB_NAME=${inventox-db.DATABASE}
+DB_USER=${inventox-db.USERNAME}
+DB_PASS=${inventox-db.PASSWORD}
+DB_PORT=${inventox-db.PORT}
+DEBUG_MODE=false
+ENVIRONMENT=production
+
