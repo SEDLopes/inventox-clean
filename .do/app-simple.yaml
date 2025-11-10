@@ -1,0 +1,17 @@
+name: inventox-clean
+services:
+- name: web
+  source_dir: /
+  github:
+    repo: SEDLopes/inventox-clean
+    branch: main
+  dockerfile_path: Dockerfile
+  instance_count: 1
+  instance_size_slug: basic-xxs
+  http_port: 80
+
+databases:
+- name: inventox-db
+  engine: MYSQL
+  version: "8"
+  size: db-s-dev-database

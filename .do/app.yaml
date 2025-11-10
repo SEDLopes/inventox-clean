@@ -13,14 +13,19 @@ services:
   - path: /
   envs:
   - key: DB_HOST
+    scope: RUN_AND_BUILD_TIME
     value: ${inventox-db.HOSTNAME}
   - key: DB_NAME
+    scope: RUN_AND_BUILD_TIME
     value: ${inventox-db.DATABASE}
   - key: DB_USER
+    scope: RUN_AND_BUILD_TIME
     value: ${inventox-db.USERNAME}
   - key: DB_PASS
+    scope: RUN_AND_BUILD_TIME
     value: ${inventox-db.PASSWORD}
   - key: DB_PORT
+    scope: RUN_AND_BUILD_TIME
     value: ${inventox-db.PORT}
   - key: DEBUG_MODE
     value: "false"
