@@ -93,6 +93,21 @@ try {
         throw new Exception('Variáveis de ambiente da database não configuradas');
     }
 
+    // Primeiro, conectar ao servidor MySQL sem especificar a base de dados
+    $dsn_server = "mysql:host=$host;port=$port;charset=utf8mb4";
+    $pdo_server = new PDO($dsn_server, $username, $password, [
+        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC
+    ]);
+
+    // Verificar se a base de dados existe e criar se necessário
+    $check_db = $pdo_server->query("SHOW DATABASES LIKE '$dbname'");
+    if ($check_db->rowCount() == 0) {
+        // Base de dados não existe, criar
+        $pdo_server->exec("CREATE DATABASE IF NOT EXISTS `$dbname` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");
+    }
+
+    // Agora conectar à base de dados específica
     $dsn = "mysql:host=$host;port=$port;dbname=$dbname;charset=utf8mb4";
     $pdo = new PDO($dsn, $username, $password, [
         PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
