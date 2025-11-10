@@ -561,6 +561,39 @@
         </div>
     </div>
 
+    <!-- Edit Count Modal -->
+    <div id="editCountModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 hidden z-50">
+        <div class="bg-white rounded-lg shadow-lg max-w-md w-full">
+            <div class="p-6">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-lg font-bold">Editar Contagem</h3>
+                    <button onclick="closeEditCountModal()" class="text-gray-500 hover:text-gray-700 text-xl">&times;</button>
+                </div>
+                <form id="editCountForm" onsubmit="updateCount(event)">
+                    <input type="hidden" id="editCountId">
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-gray-700 text-sm font-bold mb-2">Quantidade Contada:</label>
+                            <input type="number" id="editCountedQuantity" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:border-blue-500" min="0" required>
+                        </div>
+                        <div>
+                            <label class="block text-gray-700 text-sm font-bold mb-2">Notas:</label>
+                            <textarea id="editCountNotes" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:border-blue-500" rows="3" placeholder="Notas adicionais (opcional)"></textarea>
+                        </div>
+                        <div class="flex justify-end space-x-2">
+                            <button type="button" onclick="closeEditCountModal()" class="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded">
+                                Cancelar
+                            </button>
+                            <button type="submit" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded">
+                                Guardar Alterações
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
     <!-- Modals and Forms (Add Item, Create Session, etc.) -->
     <!-- Add Item Modal -->
     <div id="addItemModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 hidden z-50">
@@ -901,6 +934,6 @@
     </div>
 
     <script src="validators.js?v=1.0"></script>
-    <script src="app.js?v=1.20"></script>
+    <script src="app.js?v=1.21"></script>
 </body>
 </html>
