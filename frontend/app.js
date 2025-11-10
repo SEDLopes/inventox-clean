@@ -674,11 +674,13 @@ function switchTab(tabName) {
     // Atualizar botões
     document.querySelectorAll('.tab-btn').forEach(btn => {
         if (btn.dataset.tab === tabName) {
-            btn.classList.add('active', 'bg-blue-600', 'text-white');
-            btn.classList.remove('bg-gray-200', 'text-gray-700');
+            btn.classList.add('active');
+            btn.classList.add('border-blue-500', 'text-blue-600', 'font-medium');
+            btn.classList.remove('border-transparent', 'text-gray-500');
         } else {
-            btn.classList.remove('active', 'bg-blue-600', 'text-white');
-            btn.classList.add('bg-gray-200', 'text-gray-700');
+            btn.classList.remove('active');
+            btn.classList.remove('border-blue-500', 'text-blue-600', 'font-medium');
+            btn.classList.add('border-transparent', 'text-gray-500');
         }
     });
     
@@ -686,7 +688,10 @@ function switchTab(tabName) {
     document.querySelectorAll('.tab-content').forEach(content => {
         content.classList.add('hidden');
     });
-    document.getElementById(`${tabName}Tab`).classList.remove('hidden');
+    const targetTab = document.getElementById(`${tabName}Tab`);
+    if (targetTab) {
+        targetTab.classList.remove('hidden');
+    }
 }
 
 // Mostrar Modal de Configuração de Contagem

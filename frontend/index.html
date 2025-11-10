@@ -50,6 +50,64 @@
                 height: auto !important;
                 max-height: 60vh !important;
             }
+            
+            /* Tab Navigation - Mobile Optimization */
+            .tab-navigation {
+                overflow-x: auto !important;
+                overflow-y: hidden !important;
+                -webkit-overflow-scrolling: touch !important;
+                scrollbar-width: thin !important;
+                scrollbar-color: #cbd5e0 #f7fafc !important;
+                display: flex !important;
+                flex-wrap: nowrap !important;
+                gap: 0 !important;
+                position: relative !important;
+            }
+            
+            .tab-navigation::-webkit-scrollbar {
+                height: 4px !important;
+            }
+            
+            .tab-navigation::-webkit-scrollbar-track {
+                background: #f7fafc !important;
+            }
+            
+            .tab-navigation::-webkit-scrollbar-thumb {
+                background: #cbd5e0 !important;
+                border-radius: 2px !important;
+            }
+            
+            .tab-btn {
+                flex: 0 0 auto !important;
+                min-width: 90px !important;
+                max-width: none !important;
+                padding: 12px 16px !important;
+                font-size: 13px !important;
+                white-space: nowrap !important;
+                border-bottom: 2px solid transparent !important;
+                position: relative !important;
+                z-index: 1 !important;
+                margin: 0 !important;
+                box-sizing: border-box !important;
+            }
+            
+            .tab-btn.active {
+                border-bottom-color: #3b82f6 !important;
+                color: #3b82f6 !important;
+                font-weight: 600 !important;
+                z-index: 2 !important;
+            }
+            
+            /* Container padding mobile */
+            .container {
+                padding-left: 0.5rem !important;
+                padding-right: 0.5rem !important;
+            }
+            
+            /* Garantir que o container das abas não quebra */
+            .bg-white.rounded-lg.shadow-md.mb-6 {
+                overflow: hidden !important;
+            }
         }
     </style>
 </head>
@@ -103,36 +161,36 @@
     <div id="dashboardSection" class="container mx-auto mt-8 p-4 hidden">
         <!-- Tab Navigation -->
         <div class="bg-white rounded-lg shadow-md mb-6">
-            <div class="flex border-b overflow-x-auto">
-                <button class="tab-btn flex-1 py-3 px-4 text-center border-b-2 border-transparent text-gray-500 hover:text-gray-700 whitespace-nowrap" data-tab="dashboard">
-                    Dashboard
+            <div class="tab-navigation flex border-b overflow-x-auto">
+                <button class="tab-btn py-3 px-4 text-center border-b-2 border-transparent text-gray-500 hover:text-gray-700 whitespace-nowrap" data-tab="dashboard">
+                    📊 Dashboard
                 </button>
-                <button class="tab-btn flex-1 py-3 px-4 text-center border-b-2 border-blue-500 text-blue-600 font-medium whitespace-nowrap" data-tab="scanner">
-                    Scanner
+                <button class="tab-btn py-3 px-4 text-center border-b-2 border-blue-500 text-blue-600 font-medium whitespace-nowrap active" data-tab="scanner">
+                    📷 Scanner
                 </button>
-                <button class="tab-btn flex-1 py-3 px-4 text-center border-b-2 border-transparent text-gray-500 hover:text-gray-700 whitespace-nowrap" data-tab="items">
-                    Artigos
+                <button class="tab-btn py-3 px-4 text-center border-b-2 border-transparent text-gray-500 hover:text-gray-700 whitespace-nowrap" data-tab="items">
+                    📦 Artigos
                 </button>
-                <button class="tab-btn flex-1 py-3 px-4 text-center border-b-2 border-transparent text-gray-500 hover:text-gray-700 whitespace-nowrap" data-tab="categories">
-                    Categorias
+                <button class="tab-btn py-3 px-4 text-center border-b-2 border-transparent text-gray-500 hover:text-gray-700 whitespace-nowrap" data-tab="categories">
+                    🏷️ Categorias
                 </button>
-                <button class="tab-btn flex-1 py-3 px-4 text-center border-b-2 border-transparent text-gray-500 hover:text-gray-700 whitespace-nowrap" data-tab="sessions">
-                    Sessões
+                <button class="tab-btn py-3 px-4 text-center border-b-2 border-transparent text-gray-500 hover:text-gray-700 whitespace-nowrap" data-tab="sessions">
+                    📋 Sessões
                 </button>
-                <button class="tab-btn flex-1 py-3 px-4 text-center border-b-2 border-transparent text-gray-500 hover:text-gray-700 whitespace-nowrap" data-tab="import">
-                    Importar
+                <button class="tab-btn py-3 px-4 text-center border-b-2 border-transparent text-gray-500 hover:text-gray-700 whitespace-nowrap" data-tab="import">
+                    📥 Importar
                 </button>
-                <button id="historyTabBtn" class="tab-btn flex-1 py-3 px-4 text-center border-b-2 border-transparent text-gray-500 hover:text-gray-700 whitespace-nowrap" data-tab="history">
-                    Histórico
+                <button id="historyTabBtn" class="tab-btn py-3 px-4 text-center border-b-2 border-transparent text-gray-500 hover:text-gray-700 whitespace-nowrap" data-tab="history">
+                    📈 Histórico
                 </button>
-                <button id="usersTabBtn" class="tab-btn flex-1 py-3 px-4 text-center border-b-2 border-transparent text-gray-500 hover:text-gray-700 whitespace-nowrap hidden" data-tab="users">
-                    Utilizadores
+                <button id="usersTabBtn" class="tab-btn py-3 px-4 text-center border-b-2 border-transparent text-gray-500 hover:text-gray-700 whitespace-nowrap hidden" data-tab="users">
+                    👥 Utilizadores
                 </button>
-                <button class="tab-btn flex-1 py-3 px-4 text-center border-b-2 border-transparent text-gray-500 hover:text-gray-700 whitespace-nowrap" data-tab="companies">
-                    Empresas
+                <button class="tab-btn py-3 px-4 text-center border-b-2 border-transparent text-gray-500 hover:text-gray-700 whitespace-nowrap" data-tab="companies">
+                    🏢 Empresas
                 </button>
-                <button class="tab-btn flex-1 py-3 px-4 text-center border-b-2 border-transparent text-gray-500 hover:text-gray-700 whitespace-nowrap" data-tab="warehouses">
-                    Armazéns
+                <button class="tab-btn py-3 px-4 text-center border-b-2 border-transparent text-gray-500 hover:text-gray-700 whitespace-nowrap" data-tab="warehouses">
+                    🏭 Armazéns
                 </button>
             </div>
         </div>
@@ -934,6 +992,6 @@
     </div>
 
     <script src="validators.js?v=1.0"></script>
-    <script src="app.js?v=1.21"></script>
+    <script src="app.js?v=1.22"></script>
 </body>
 </html>
