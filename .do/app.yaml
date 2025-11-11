@@ -3,7 +3,7 @@ services:
 - name: web
   source_dir: /
   github:
-    repo: SEDLopes/inventox-app
+    repo: SEDLopes/inventox-digitalocean
     branch: main
   run_command: apache2-foreground
   environment_slug: php
