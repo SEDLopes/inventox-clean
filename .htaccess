@@ -59,6 +59,21 @@ Header always set Content-Security-Policy "default-src 'self'; script-src 'self'
     </FilesMatch>
 </IfModule>
 
+# MIME Types para arquivos CSS
+<IfModule mod_mime.c>
+    AddType text/css .css
+</IfModule>
+
+# Configuração específica para arquivos CSS no frontend/dist
+<Directory "frontend/dist">
+    <IfModule mod_mime.c>
+        AddType text/css .css
+    </IfModule>
+    <IfModule mod_headers.c>
+        Header set Content-Type "text/css; charset=utf-8"
+    </IfModule>
+</Directory>
+
 # Compressão gzip
 <IfModule mod_deflate.c>
     AddOutputFilterByType DEFLATE text/html text/plain text/xml text/css text/javascript application/javascript application/json application/xml
