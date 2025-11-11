@@ -1,0 +1,14 @@
+{
+  "name": "inventox",
+  "version": "1.0.0",
+  "description": "Sistema de Gestão de Inventário",
+  "scripts": {
+    "tailwind:build": "tailwindcss -i ./frontend/tailwind.input.css -o ./frontend/dist/styles.css --watch",
+    "tailwind:build-prod": "tailwindcss -i ./frontend/tailwind.input.css -o ./frontend/dist/styles.css --minify"
+  },
+  "devDependencies": {
+    "tailwindcss": "^3.4.0",
+    "autoprefixer": "^10.4.16",
+    "postcss": "^8.4.32"
+  }
+}
