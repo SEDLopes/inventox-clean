@@ -4270,3 +4270,452 @@ if (dashboardSection) {
     dashboardObserver.observe(dashboardSection, { attributes: true, attributeFilter: ['class'] });
 }
 
+// ===================================
+// 📷 ENHANCED SCANNER SYSTEM - FASE 2
+// ===================================
+
+// Scanner Enhancement State
+let scannerEnhancementState = {
+    continuousMode: false,
+    audioFeedback: false,
+    autoFocus: true,
+    scanHistory: JSON.parse(localStorage.getItem('inventox_scan_history') || '[]'),
+    scanCount: parseInt(localStorage.getItem('inventox_scan_count_today') || '0'),
+    lastScanDate: localStorage.getItem('inventox_last_scan_date') || '',
+    pendingPreview: null,
+    audioContext: null,
+    scanSound: null
+};
+
+// Initialize Enhanced Scanner
+function initEnhancedScanner() {
+    initScannerControls();
+    initScanHistory();
+    initAudioFeedback();
+    loadScannerPreferences();
+    
+    log.debug('Enhanced Scanner initialized');
+}
+
+// ===================================
+// 🎛️ SCANNER CONTROLS
+// ===================================
+
+function initScannerControls() {
+    const continuousModeCheckbox = document.getElementById('continuousScanMode');
+    const audioFeedbackCheckbox = document.getElementById('audioFeedback');
+    const autoFocusCheckbox = document.getElementById('autoFocus');
+    const confirmScanBtn = document.getElementById('confirmScanBtn');
+    const cancelScanBtn = document.getElementById('cancelScanBtn');
+    
+    if (continuousModeCheckbox) {
+        continuousModeCheckbox.addEventListener('change', (e) => {
+            scannerEnhancementState.continuousMode = e.target.checked;
+            saveScannerPreferences();
+            showSuccessToast('Modo Contínuo', e.target.checked ? 'Ativado' : 'Desativado');
+        });
+    }
+    
+    if (audioFeedbackCheckbox) {
+        audioFeedbackCheckbox.addEventListener('change', (e) => {
+            scannerEnhancementState.audioFeedback = e.target.checked;
+            saveScannerPreferences();
+            if (e.target.checked) {
+                initAudioFeedback();
+                playSuccessSound();
+            }
+            showSuccessToast('Som de Confirmação', e.target.checked ? 'Ativado' : 'Desativado');
+        });
+    }
+    
+    if (autoFocusCheckbox) {
+        autoFocusCheckbox.addEventListener('change', (e) => {
+            scannerEnhancementState.autoFocus = e.target.checked;
+            saveScannerPreferences();
+            showSuccessToast('Auto-foco', e.target.checked ? 'Ativado' : 'Desativado');
+        });
+    }
+    
+    if (confirmScanBtn) {
+        confirmScanBtn.addEventListener('click', confirmPendingScan);
+    }
+    
+    if (cancelScanBtn) {
+        cancelScanBtn.addEventListener('click', cancelPendingScan);
+    }
+}
+
+function loadScannerPreferences() {
+    const preferences = JSON.parse(localStorage.getItem('inventox_scanner_preferences') || '{}');
+    
+    scannerEnhancementState.continuousMode = preferences.continuousMode || false;
+    scannerEnhancementState.audioFeedback = preferences.audioFeedback || false;
+    scannerEnhancementState.autoFocus = preferences.autoFocus !== false; // default true
+    
+    // Update UI
+    const continuousModeCheckbox = document.getElementById('continuousScanMode');
+    const audioFeedbackCheckbox = document.getElementById('audioFeedback');
+    const autoFocusCheckbox = document.getElementById('autoFocus');
+    
+    if (continuousModeCheckbox) continuousModeCheckbox.checked = scannerEnhancementState.continuousMode;
+    if (audioFeedbackCheckbox) audioFeedbackCheckbox.checked = scannerEnhancementState.audioFeedback;
+    if (autoFocusCheckbox) autoFocusCheckbox.checked = scannerEnhancementState.autoFocus;
+}
+
+function saveScannerPreferences() {
+    const preferences = {
+        continuousMode: scannerEnhancementState.continuousMode,
+        audioFeedback: scannerEnhancementState.audioFeedback,
+        autoFocus: scannerEnhancementState.autoFocus
+    };
+    
+    localStorage.setItem('inventox_scanner_preferences', JSON.stringify(preferences));
+}
+
+// ===================================
+// 🔊 AUDIO FEEDBACK SYSTEM
+// ===================================
+
+function initAudioFeedback() {
+    if (!scannerEnhancementState.audioFeedback) return;
+    
+    try {
+        // Create AudioContext for generating beep sounds
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        if (AudioContext) {
+            scannerEnhancementState.audioContext = new AudioContext();
+        }
+    } catch (error) {
+        log.debug('Audio feedback not available:', error);
+    }
+}
+
+function playSuccessSound() {
+    if (!scannerEnhancementState.audioFeedback || !scannerEnhancementState.audioContext) return;
+    
+    try {
+        const audioContext = scannerEnhancementState.audioContext;
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+        
+        oscillator.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+        
+        oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
+        oscillator.frequency.setValueAtTime(600, audioContext.currentTime + 0.1);
+        
+        gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.2);
+        
+        oscillator.start(audioContext.currentTime);
+        oscillator.stop(audioContext.currentTime + 0.2);
+    } catch (error) {
+        log.debug('Error playing success sound:', error);
+    }
+}
+
+function playErrorSound() {
+    if (!scannerEnhancementState.audioFeedback || !scannerEnhancementState.audioContext) return;
+    
+    try {
+        const audioContext = scannerEnhancementState.audioContext;
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+        
+        oscillator.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+        
+        oscillator.frequency.setValueAtTime(300, audioContext.currentTime);
+        oscillator.frequency.setValueAtTime(200, audioContext.currentTime + 0.15);
+        
+        gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
+        
+        oscillator.start(audioContext.currentTime);
+        oscillator.stop(audioContext.currentTime + 0.3);
+    } catch (error) {
+        log.debug('Error playing error sound:', error);
+    }
+}
+
+// ===================================
+// 📋 SCAN HISTORY SYSTEM
+// ===================================
+
+function initScanHistory() {
+    updateScanCounter();
+    renderScanHistory();
+    
+    const clearHistoryBtn = document.getElementById('clearHistoryBtn');
+    if (clearHistoryBtn) {
+        clearHistoryBtn.addEventListener('click', clearScanHistory);
+    }
+    
+    // Reset daily counter if it's a new day
+    const today = new Date().toDateString();
+    if (scannerEnhancementState.lastScanDate !== today) {
+        scannerEnhancementState.scanCount = 0;
+        scannerEnhancementState.lastScanDate = today;
+        localStorage.setItem('inventox_scan_count_today', '0');
+        localStorage.setItem('inventox_last_scan_date', today);
+    }
+}
+
+function addToScanHistory(barcode, itemName = null, success = true) {
+    const scanEntry = {
+        id: Date.now(),
+        barcode: barcode,
+        itemName: itemName || 'Item não encontrado',
+        timestamp: new Date().toISOString(),
+        success: success
+    };
+    
+    // Add to beginning of array
+    scannerEnhancementState.scanHistory.unshift(scanEntry);
+    
+    // Keep only last 10 scans
+    if (scannerEnhancementState.scanHistory.length > 10) {
+        scannerEnhancementState.scanHistory = scannerEnhancementState.scanHistory.slice(0, 10);
+    }
+    
+    // Update daily counter
+    if (success) {
+        scannerEnhancementState.scanCount++;
+        localStorage.setItem('inventox_scan_count_today', scannerEnhancementState.scanCount.toString());
+    }
+    
+    // Save to localStorage
+    localStorage.setItem('inventox_scan_history', JSON.stringify(scannerEnhancementState.scanHistory));
+    
+    // Update UI
+    updateScanCounter();
+    renderScanHistory();
+}
+
+function renderScanHistory() {
+    const scanHistoryContainer = document.getElementById('scanHistory');
+    if (!scanHistoryContainer) return;
+    
+    if (scannerEnhancementState.scanHistory.length === 0) {
+        scanHistoryContainer.innerHTML = `
+            <div class="text-center text-gray-500 py-4">
+                <p class="text-sm">Nenhum scan realizado ainda</p>
+                <p class="text-xs text-gray-400">Os últimos 10 scans aparecerão aqui</p>
+            </div>
+        `;
+        return;
+    }
+    
+    const historyHTML = scannerEnhancementState.scanHistory.map(entry => {
+        const time = new Date(entry.timestamp).toLocaleTimeString('pt-PT', { 
+            hour: '2-digit', 
+            minute: '2-digit' 
+        });
+        
+        const statusIcon = entry.success ? '✅' : '❌';
+        const statusColor = entry.success ? 'text-green-600' : 'text-red-600';
+        
+        return `
+            <div class="flex items-center justify-between p-2 bg-gray-50 rounded border">
+                <div class="flex items-center space-x-3">
+                    <span class="text-lg">${statusIcon}</span>
+                    <div>
+                        <p class="text-sm font-medium text-gray-800">${entry.itemName}</p>
+                        <p class="text-xs text-gray-500">${entry.barcode}</p>
+                    </div>
+                </div>
+                <span class="text-xs ${statusColor}">${time}</span>
+            </div>
+        `;
+    }).join('');
+    
+    scanHistoryContainer.innerHTML = historyHTML;
+}
+
+function updateScanCounter() {
+    const scanCounter = document.getElementById('scanCounter');
+    if (scanCounter) {
+        const count = scannerEnhancementState.scanCount;
+        scanCounter.textContent = `${count} scan${count !== 1 ? 's' : ''} hoje`;
+    }
+}
+
+function clearScanHistory() {
+    if (confirm('Tem certeza que deseja limpar o histórico de scans?')) {
+        scannerEnhancementState.scanHistory = [];
+        localStorage.setItem('inventox_scan_history', '[]');
+        renderScanHistory();
+        showSuccessToast('Histórico Limpo', 'Histórico de scans removido');
+    }
+}
+
+// ===================================
+// 🔍 ITEM PREVIEW SYSTEM
+// ===================================
+
+function showItemPreview(barcode, itemData) {
+    const itemPreview = document.getElementById('itemPreview');
+    const previewItemName = document.getElementById('previewItemName');
+    const previewItemCode = document.getElementById('previewItemCode');
+    const previewItemStock = document.getElementById('previewItemStock');
+    
+    if (!itemPreview || !previewItemName || !previewItemCode || !previewItemStock) return;
+    
+    // Store pending scan data
+    scannerEnhancementState.pendingPreview = { barcode, itemData };
+    
+    // Update preview content
+    previewItemName.textContent = itemData.name || 'Item não encontrado';
+    previewItemCode.textContent = `Código: ${barcode}`;
+    previewItemStock.textContent = `Stock: ${itemData.quantity || 0}`;
+    
+    // Show preview
+    itemPreview.classList.remove('hidden');
+    
+    // Show scan success animation
+    showScanSuccessAnimation();
+    
+    // Play success sound
+    playSuccessSound();
+    
+    // Auto-confirm in continuous mode after 2 seconds
+    if (scannerEnhancementState.continuousMode) {
+        setTimeout(() => {
+            if (scannerEnhancementState.pendingPreview) {
+                confirmPendingScan();
+            }
+        }, 2000);
+    }
+}
+
+function confirmPendingScan() {
+    if (!scannerEnhancementState.pendingPreview) return;
+    
+    const { barcode, itemData } = scannerEnhancementState.pendingPreview;
+    
+    // Add to scan history
+    addToScanHistory(barcode, itemData.name, true);
+    
+    // Process the scan (call original function)
+    if (window.processBarcode) {
+        window.processBarcode(barcode);
+    }
+    
+    // Hide preview
+    hideItemPreview();
+    
+    // Continue scanning in continuous mode
+    if (scannerEnhancementState.continuousMode) {
+        // Scanner continues automatically
+        showSuccessToast('Scan Confirmado', 'Continuando digitalização...');
+    }
+}
+
+function cancelPendingScan() {
+    if (!scannerEnhancementState.pendingPreview) return;
+    
+    const { barcode } = scannerEnhancementState.pendingPreview;
+    
+    // Add to scan history as cancelled
+    addToScanHistory(barcode, 'Scan cancelado', false);
+    
+    // Play error sound
+    playErrorSound();
+    
+    // Hide preview
+    hideItemPreview();
+    
+    showSuccessToast('Scan Cancelado', 'Digitalização cancelada');
+}
+
+function hideItemPreview() {
+    const itemPreview = document.getElementById('itemPreview');
+    if (itemPreview) {
+        itemPreview.classList.add('hidden');
+    }
+    
+    scannerEnhancementState.pendingPreview = null;
+}
+
+function showScanSuccessAnimation() {
+    const scanSuccessOverlay = document.getElementById('scanSuccessOverlay');
+    if (scanSuccessOverlay) {
+        scanSuccessOverlay.classList.remove('hidden');
+        setTimeout(() => {
+            scanSuccessOverlay.classList.add('hidden');
+        }, 1000);
+    }
+}
+
+// ===================================
+// 🔗 INTEGRATION WITH EXISTING SCANNER
+// ===================================
+
+// Override the original barcode processing to add preview
+const originalProcessBarcode = window.processBarcode;
+if (originalProcessBarcode) {
+    window.processBarcode = function(barcode) {
+        // If continuous mode is off, show preview
+        if (!scannerEnhancementState.continuousMode) {
+            // Fetch item data for preview
+            fetchItemForPreview(barcode);
+        } else {
+            // In continuous mode, process directly
+            addToScanHistory(barcode, 'Item processado', true);
+            playSuccessSound();
+            originalProcessBarcode(barcode);
+        }
+    };
+}
+
+async function fetchItemForPreview(barcode) {
+    try {
+        showEnhancedLoading('Verificando item...', 'Consultando base de dados');
+        
+        const response = await fetch(`${API_BASE}/items.php?barcode=${encodeURIComponent(barcode)}`, {
+            method: 'GET',
+            credentials: 'include'
+        });
+        
+        hideEnhancedLoading();
+        
+        if (response.ok) {
+            const data = await response.json();
+            if (data.success && data.item) {
+                showItemPreview(barcode, data.item);
+            } else {
+                // Item not found, show preview with empty data
+                showItemPreview(barcode, { name: 'Item não encontrado', quantity: 0 });
+            }
+        } else {
+            throw new Error('Erro ao consultar item');
+        }
+    } catch (error) {
+        hideEnhancedLoading();
+        showErrorToast('Erro', 'Não foi possível consultar o item');
+        playErrorSound();
+        addToScanHistory(barcode, 'Erro na consulta', false);
+    }
+}
+
+// ===================================
+// 🎯 INITIALIZE ENHANCED SCANNER
+// ===================================
+
+// Initialize when scanner tab becomes active
+document.addEventListener('DOMContentLoaded', () => {
+    setTimeout(initEnhancedScanner, 200);
+});
+
+// Also initialize when switching to scanner tab
+const originalSwitchTab = window.switchTab;
+if (originalSwitchTab) {
+    const enhancedSwitchTab = window.switchTab;
+    window.switchTab = function(tabName) {
+        enhancedSwitchTab(tabName);
+        if (tabName === 'scanner') {
+            setTimeout(initEnhancedScanner, 100);
+        }
+    };
+}
+

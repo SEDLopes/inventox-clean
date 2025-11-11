@@ -280,9 +280,72 @@
                     </select>
                 </div>
 
+                <!-- Enhanced Scanner Controls -->
+                <div class="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                    <div class="flex flex-wrap items-center gap-4">
+                        <!-- Continuous Scan Mode -->
+                        <label class="flex items-center space-x-2">
+                            <input type="checkbox" id="continuousScanMode" class="rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+                            <span class="text-sm font-medium text-gray-700">Modo Contínuo</span>
+                        </label>
+                        
+                        <!-- Audio Feedback -->
+                        <label class="flex items-center space-x-2">
+                            <input type="checkbox" id="audioFeedback" class="rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+                            <span class="text-sm font-medium text-gray-700">Som de Confirmação</span>
+                        </label>
+                        
+                        <!-- Auto-focus -->
+                        <label class="flex items-center space-x-2">
+                            <input type="checkbox" id="autoFocus" class="rounded border-gray-300 text-blue-600 focus:ring-blue-500" checked>
+                            <span class="text-sm font-medium text-gray-700">Auto-foco</span>
+                        </label>
+                    </div>
+                </div>
+
                 <!-- Scanner Video -->
                 <div id="scanner" class="mb-4 hidden">
-                    <video id="scannerVideo" class="w-full max-w-md mx-auto border rounded" playsinline muted></video>
+                    <div class="relative">
+                        <video id="scannerVideo" class="w-full max-w-md mx-auto border rounded" playsinline muted></video>
+                        
+                        <!-- Scan Overlay -->
+                        <div id="scanOverlay" class="absolute inset-0 flex items-center justify-center pointer-events-none">
+                            <div class="w-48 h-48 border-2 border-red-500 rounded-lg opacity-50"></div>
+                        </div>
+                        
+                        <!-- Scan Success Animation -->
+                        <div id="scanSuccessOverlay" class="absolute inset-0 bg-green-500 bg-opacity-20 flex items-center justify-center hidden">
+                            <div class="bg-white rounded-full p-4 shadow-lg">
+                                <svg class="w-8 h-8 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                                </svg>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Item Preview -->
+                <div id="itemPreview" class="mb-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg hidden">
+                    <div class="flex items-center space-x-4">
+                        <div class="flex-shrink-0">
+                            <div class="w-16 h-16 bg-gray-200 rounded-lg flex items-center justify-center">
+                                <span class="text-2xl">📦</span>
+                            </div>
+                        </div>
+                        <div class="flex-1">
+                            <h4 id="previewItemName" class="font-semibold text-gray-800">Nome do Item</h4>
+                            <p id="previewItemCode" class="text-sm text-gray-600">Código: ---</p>
+                            <p id="previewItemStock" class="text-sm text-gray-600">Stock: ---</p>
+                        </div>
+                        <div class="flex space-x-2">
+                            <button id="confirmScanBtn" class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded text-sm">
+                                Confirmar
+                            </button>
+                            <button id="cancelScanBtn" class="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded text-sm">
+                                Cancelar
+                            </button>
+                        </div>
+                    </div>
                 </div>
                 
                 <!-- Scanner Placeholder -->
@@ -328,6 +391,24 @@
                     <button id="clearSessionBtn" class="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded">
                         Limpar Sessão
                     </button>
+                </div>
+            </div>
+
+            <!-- Scan History -->
+            <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-lg font-bold">Histórico de Scans</h3>
+                    <div class="flex items-center space-x-2">
+                        <span id="scanCounter" class="text-sm text-gray-600">0 scans hoje</span>
+                        <button id="clearHistoryBtn" class="text-red-600 hover:text-red-800 text-sm">Limpar</button>
+                    </div>
+                </div>
+                
+                <div id="scanHistory" class="space-y-2 max-h-48 overflow-y-auto">
+                    <div class="text-center text-gray-500 py-4">
+                        <p class="text-sm">Nenhum scan realizado ainda</p>
+                        <p class="text-xs text-gray-400">Os últimos 10 scans aparecerão aqui</p>
+                    </div>
                 </div>
             </div>
 
