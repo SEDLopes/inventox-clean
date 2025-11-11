@@ -113,12 +113,54 @@
     </style>
 </head>
 <body class="bg-gray-100 min-h-screen">
-    <!-- Loading Overlay -->
+    <!-- Enhanced Loading Overlay -->
     <div id="loadingOverlay" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
-        <div class="bg-white rounded-lg p-6">
+        <div class="bg-white rounded-2xl p-8 shadow-2xl max-w-sm mx-4">
             <div class="text-center">
-                <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-                <p class="text-gray-700">A carregar...</p>
+                <!-- Modern Loading Animation -->
+                <div class="relative mb-6">
+                    <div class="animate-spin rounded-full h-16 w-16 border-4 border-blue-100 mx-auto"></div>
+                    <div class="animate-spin rounded-full h-16 w-16 border-4 border-blue-600 border-t-transparent absolute top-0 left-1/2 transform -translate-x-1/2"></div>
+                </div>
+                
+                <!-- Dynamic Loading Text -->
+                <h3 id="loadingTitle" class="text-lg font-semibold text-gray-800 mb-2">A carregar...</h3>
+                <p id="loadingMessage" class="text-sm text-gray-600 mb-4">Por favor aguarde</p>
+                
+                <!-- Progress Bar -->
+                <div id="loadingProgress" class="w-full bg-gray-200 rounded-full h-2 hidden">
+                    <div id="loadingProgressBar" class="bg-blue-600 h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Success Toast -->
+    <div id="successToast" class="fixed top-4 right-4 bg-green-500 text-white px-6 py-4 rounded-lg shadow-lg z-50 hidden transform translate-x-full transition-transform duration-300">
+        <div class="flex items-center space-x-3">
+            <div class="flex-shrink-0">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                </svg>
+            </div>
+            <div>
+                <p id="successToastTitle" class="font-semibold">Sucesso!</p>
+                <p id="successToastMessage" class="text-sm opacity-90">Operação concluída</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Error Toast -->
+    <div id="errorToast" class="fixed top-4 right-4 bg-red-500 text-white px-6 py-4 rounded-lg shadow-lg z-50 hidden transform translate-x-full transition-transform duration-300">
+        <div class="flex items-center space-x-3">
+            <div class="flex-shrink-0">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                </svg>
+            </div>
+            <div>
+                <p id="errorToastTitle" class="font-semibold">Erro!</p>
+                <p id="errorToastMessage" class="text-sm opacity-90">Algo correu mal</p>
             </div>
         </div>
     </div>
@@ -193,6 +235,27 @@
                 <button class="tab-btn py-3 px-4 text-center border-b-2 border-transparent text-gray-500 hover:text-gray-700 whitespace-nowrap" data-tab="warehouses">
                     🏭 Armazéns
                 </button>
+            </div>
+        </div>
+
+        <!-- Breadcrumbs Navigation -->
+        <div id="breadcrumbs" class="bg-white rounded-lg shadow-sm mb-4 px-4 py-3 hidden">
+            <nav class="flex items-center space-x-2 text-sm">
+                <span class="text-gray-500">📍</span>
+                <span id="breadcrumbHome" class="text-blue-600 hover:text-blue-800 cursor-pointer font-medium">InventoX</span>
+                <span id="breadcrumbSeparator1" class="text-gray-400 hidden">›</span>
+                <span id="breadcrumbSection" class="text-gray-600 hidden"></span>
+                <span id="breadcrumbSeparator2" class="text-gray-400 hidden">›</span>
+                <span id="breadcrumbSubsection" class="text-gray-800 font-medium hidden"></span>
+            </nav>
+            
+            <!-- Keyboard Shortcuts Hint -->
+            <div id="keyboardHints" class="mt-2 flex flex-wrap gap-2 text-xs text-gray-500">
+                <span class="bg-gray-100 px-2 py-1 rounded">Ctrl+1 Dashboard</span>
+                <span class="bg-gray-100 px-2 py-1 rounded">Ctrl+2 Scanner</span>
+                <span class="bg-gray-100 px-2 py-1 rounded">Ctrl+3 Artigos</span>
+                <span class="bg-gray-100 px-2 py-1 rounded">Ctrl+K Pesquisar</span>
+                <span id="hideHintsBtn" class="text-blue-600 hover:text-blue-800 cursor-pointer ml-2">Ocultar</span>
             </div>
         </div>
 

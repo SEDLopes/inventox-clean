@@ -3911,3 +3911,362 @@ function exportReport(reportType = null, format = null) {
 // Tornar função disponível globalmente
 window.exportReport = exportReport;
 
+// ===================================
+// 🚀 UX ENHANCEMENTS - INVENTOX v2.0
+// ===================================
+
+// UX State Management
+let uxState = {
+    currentTab: 'scanner',
+    breadcrumbsVisible: false,
+    keyboardHintsVisible: true,
+    lastActiveTab: localStorage.getItem('inventox_last_tab') || 'scanner'
+};
+
+// Initialize UX Enhancements
+function initUXEnhancements() {
+    initBreadcrumbs();
+    initKeyboardShortcuts();
+    initTabPersistence();
+    initToastSystem();
+    initLoadingEnhancements();
+    
+    log.debug('UX Enhancements initialized');
+}
+
+// ===================================
+// 🧭 BREADCRUMBS SYSTEM
+// ===================================
+
+function initBreadcrumbs() {
+    const breadcrumbs = document.getElementById('breadcrumbs');
+    const hideHintsBtn = document.getElementById('hideHintsBtn');
+    
+    if (hideHintsBtn) {
+        hideHintsBtn.addEventListener('click', toggleKeyboardHints);
+    }
+    
+    // Show breadcrumbs when dashboard is visible
+    const observer = new MutationObserver(() => {
+        const dashboardSection = document.getElementById('dashboardSection');
+        if (dashboardSection && !dashboardSection.classList.contains('hidden')) {
+            showBreadcrumbs();
+        }
+    });
+    
+    const dashboardSection = document.getElementById('dashboardSection');
+    if (dashboardSection) {
+        observer.observe(dashboardSection, { attributes: true, attributeFilter: ['class'] });
+    }
+}
+
+function showBreadcrumbs() {
+    const breadcrumbs = document.getElementById('breadcrumbs');
+    if (breadcrumbs) {
+        breadcrumbs.classList.remove('hidden');
+        uxState.breadcrumbsVisible = true;
+    }
+}
+
+function updateBreadcrumbs(section, subsection = null) {
+    const breadcrumbSection = document.getElementById('breadcrumbSection');
+    const breadcrumbSubsection = document.getElementById('breadcrumbSubsection');
+    const separator1 = document.getElementById('breadcrumbSeparator1');
+    const separator2 = document.getElementById('breadcrumbSeparator2');
+    
+    if (breadcrumbSection) {
+        breadcrumbSection.textContent = section;
+        breadcrumbSection.classList.remove('hidden');
+        separator1.classList.remove('hidden');
+    }
+    
+    if (subsection && breadcrumbSubsection) {
+        breadcrumbSubsection.textContent = subsection;
+        breadcrumbSubsection.classList.remove('hidden');
+        separator2.classList.remove('hidden');
+    } else if (breadcrumbSubsection) {
+        breadcrumbSubsection.classList.add('hidden');
+        separator2.classList.add('hidden');
+    }
+}
+
+function toggleKeyboardHints() {
+    const keyboardHints = document.getElementById('keyboardHints');
+    const hideHintsBtn = document.getElementById('hideHintsBtn');
+    
+    if (uxState.keyboardHintsVisible) {
+        keyboardHints.style.display = 'none';
+        hideHintsBtn.textContent = 'Mostrar atalhos';
+        uxState.keyboardHintsVisible = false;
+        localStorage.setItem('inventox_keyboard_hints', 'false');
+    } else {
+        keyboardHints.style.display = 'flex';
+        hideHintsBtn.textContent = 'Ocultar';
+        uxState.keyboardHintsVisible = true;
+        localStorage.setItem('inventox_keyboard_hints', 'true');
+    }
+}
+
+// ===================================
+// ⌨️ KEYBOARD SHORTCUTS
+// ===================================
+
+function initKeyboardShortcuts() {
+    document.addEventListener('keydown', handleKeyboardShortcuts);
+    
+    // Load keyboard hints preference
+    const hintsPreference = localStorage.getItem('inventox_keyboard_hints');
+    if (hintsPreference === 'false') {
+        uxState.keyboardHintsVisible = false;
+        setTimeout(toggleKeyboardHints, 100);
+    }
+}
+
+function handleKeyboardShortcuts(event) {
+    // Don't trigger shortcuts when typing in inputs
+    if (event.target.tagName === 'INPUT' || event.target.tagName === 'TEXTAREA' || event.target.tagName === 'SELECT') {
+        return;
+    }
+    
+    if (event.ctrlKey || event.metaKey) {
+        switch(event.key) {
+            case '1':
+                event.preventDefault();
+                switchTabWithAnimation('dashboard');
+                showSuccessToast('Dashboard', 'Navegação rápida ativada');
+                break;
+            case '2':
+                event.preventDefault();
+                switchTabWithAnimation('scanner');
+                showSuccessToast('Scanner', 'Navegação rápida ativada');
+                break;
+            case '3':
+                event.preventDefault();
+                switchTabWithAnimation('items');
+                showSuccessToast('Artigos', 'Navegação rápida ativada');
+                break;
+            case '4':
+                event.preventDefault();
+                switchTabWithAnimation('categories');
+                showSuccessToast('Categorias', 'Navegação rápida ativada');
+                break;
+            case '5':
+                event.preventDefault();
+                switchTabWithAnimation('sessions');
+                showSuccessToast('Sessões', 'Navegação rápida ativada');
+                break;
+            case 'k':
+            case 'K':
+                event.preventDefault();
+                // TODO: Implement global search
+                showSuccessToast('Pesquisa Global', 'Em breve disponível');
+                break;
+        }
+    }
+}
+
+function switchTabWithAnimation(tabName) {
+    // Add smooth transition effect
+    const currentTab = document.querySelector('.tab-content:not(.hidden)');
+    if (currentTab) {
+        currentTab.style.opacity = '0';
+        setTimeout(() => {
+            switchTab(tabName);
+            const newTab = document.querySelector('.tab-content:not(.hidden)');
+            if (newTab) {
+                newTab.style.opacity = '0';
+                setTimeout(() => {
+                    newTab.style.opacity = '1';
+                }, 50);
+            }
+        }, 150);
+    } else {
+        switchTab(tabName);
+    }
+}
+
+// ===================================
+// 💾 TAB PERSISTENCE
+// ===================================
+
+function initTabPersistence() {
+    // Restore last active tab
+    if (uxState.lastActiveTab && uxState.lastActiveTab !== 'scanner') {
+        setTimeout(() => {
+            switchTab(uxState.lastActiveTab);
+        }, 500);
+    }
+    
+    // Override original switchTab to add persistence
+    const originalSwitchTab = window.switchTab;
+    if (originalSwitchTab) {
+        window.switchTab = function(tabName) {
+            originalSwitchTab(tabName);
+            saveTabState(tabName);
+            updateBreadcrumbsForTab(tabName);
+        };
+    }
+}
+
+function saveTabState(tabName) {
+    uxState.currentTab = tabName;
+    uxState.lastActiveTab = tabName;
+    localStorage.setItem('inventox_last_tab', tabName);
+}
+
+function updateBreadcrumbsForTab(tabName) {
+    const tabNames = {
+        'dashboard': 'Dashboard',
+        'scanner': 'Scanner',
+        'items': 'Artigos',
+        'categories': 'Categorias',
+        'sessions': 'Sessões',
+        'import': 'Importar',
+        'history': 'Histórico',
+        'users': 'Utilizadores',
+        'companies': 'Empresas',
+        'warehouses': 'Armazéns'
+    };
+    
+    const sectionName = tabNames[tabName] || tabName;
+    updateBreadcrumbs(sectionName);
+}
+
+// ===================================
+// 🎉 ENHANCED TOAST SYSTEM
+// ===================================
+
+function initToastSystem() {
+    // Auto-hide toasts after 4 seconds
+    setTimeout(() => {
+        const toasts = document.querySelectorAll('#successToast, #errorToast');
+        toasts.forEach(toast => {
+            if (!toast.classList.contains('hidden')) {
+                hideToast(toast);
+            }
+        });
+    }, 4000);
+}
+
+function showSuccessToast(title, message = '') {
+    const toast = document.getElementById('successToast');
+    const titleEl = document.getElementById('successToastTitle');
+    const messageEl = document.getElementById('successToastMessage');
+    
+    if (toast && titleEl && messageEl) {
+        titleEl.textContent = title;
+        messageEl.textContent = message;
+        
+        toast.classList.remove('hidden');
+        setTimeout(() => {
+            toast.classList.remove('translate-x-full');
+        }, 10);
+        
+        // Auto-hide after 3 seconds
+        setTimeout(() => {
+            hideToast(toast);
+        }, 3000);
+    }
+}
+
+function showErrorToast(title, message = '') {
+    const toast = document.getElementById('errorToast');
+    const titleEl = document.getElementById('errorToastTitle');
+    const messageEl = document.getElementById('errorToastMessage');
+    
+    if (toast && titleEl && messageEl) {
+        titleEl.textContent = title;
+        messageEl.textContent = message;
+        
+        toast.classList.remove('hidden');
+        setTimeout(() => {
+            toast.classList.remove('translate-x-full');
+        }, 10);
+        
+        // Auto-hide after 4 seconds (errors stay longer)
+        setTimeout(() => {
+            hideToast(toast);
+        }, 4000);
+    }
+}
+
+function hideToast(toast) {
+    toast.classList.add('translate-x-full');
+    setTimeout(() => {
+        toast.classList.add('hidden');
+    }, 300);
+}
+
+// ===================================
+// ⏳ ENHANCED LOADING SYSTEM
+// ===================================
+
+function initLoadingEnhancements() {
+    // Override original showLoading if it exists
+    const originalShowLoading = window.showLoading;
+    if (originalShowLoading) {
+        window.showLoading = showEnhancedLoading;
+    }
+}
+
+function showEnhancedLoading(title = 'A carregar...', message = 'Por favor aguarde', showProgress = false) {
+    const overlay = document.getElementById('loadingOverlay');
+    const titleEl = document.getElementById('loadingTitle');
+    const messageEl = document.getElementById('loadingMessage');
+    const progressEl = document.getElementById('loadingProgress');
+    
+    if (overlay && titleEl && messageEl) {
+        titleEl.textContent = title;
+        messageEl.textContent = message;
+        
+        if (showProgress && progressEl) {
+            progressEl.classList.remove('hidden');
+        } else if (progressEl) {
+            progressEl.classList.add('hidden');
+        }
+        
+        overlay.classList.remove('hidden');
+    }
+}
+
+function updateLoadingProgress(percentage) {
+    const progressBar = document.getElementById('loadingProgressBar');
+    if (progressBar) {
+        progressBar.style.width = `${Math.min(100, Math.max(0, percentage))}%`;
+    }
+}
+
+function hideEnhancedLoading() {
+    const overlay = document.getElementById('loadingOverlay');
+    if (overlay) {
+        overlay.classList.add('hidden');
+    }
+}
+
+// Override original hideLoading
+window.hideLoading = hideEnhancedLoading;
+window.showLoading = showEnhancedLoading;
+
+// ===================================
+// 🎯 INITIALIZE ALL UX ENHANCEMENTS
+// ===================================
+
+// Initialize when DOM is ready
+document.addEventListener('DOMContentLoaded', () => {
+    setTimeout(initUXEnhancements, 100);
+});
+
+// Initialize when dashboard becomes visible
+const dashboardObserver = new MutationObserver((mutations) => {
+    mutations.forEach((mutation) => {
+        if (mutation.target.id === 'dashboardSection' && !mutation.target.classList.contains('hidden')) {
+            setTimeout(initUXEnhancements, 100);
+        }
+    });
+});
+
+const dashboardSection = document.getElementById('dashboardSection');
+if (dashboardSection) {
+    dashboardObserver.observe(dashboardSection, { attributes: true, attributeFilter: ['class'] });
+}
+
