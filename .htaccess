@@ -1,5 +1,4 @@
-# InventoX - Apache Configuration
-# Configuração otimizada para produção
+# InventoX - Apache Configuration Simplificada
 
 DirectoryIndex index.php index.html
 
@@ -10,62 +9,29 @@ RewriteEngine On
 RewriteCond %{REQUEST_URI} ^/$
 RewriteRule ^$ index.php [L]
 
-# API direta - preservar query string completa
+# API direta
 RewriteCond %{REQUEST_URI} ^/api/
-RewriteRule ^api/(.*)$ api/$1 [L,QSA,NE]
+RewriteRule ^api/(.*)$ api/$1 [L,QSA]
 
 # Frontend SPA
 RewriteCond %{REQUEST_URI} ^/frontend/
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteRule ^frontend/.*$ /frontend/index.html [L]
 
-# MIME Types para arquivos CSS
+# MIME Types
 <IfModule mod_mime.c>
     AddType text/css .css
     AddType application/javascript .js
 </IfModule>
 
-# Security Headers
+# Headers básicos
 <IfModule mod_headers.c>
-    # Prevenir clickjacking
-    Header always set X-Frame-Options "SAMEORIGIN"
-    
-    # Prevenir MIME type sniffing
-    Header always set X-Content-Type-Options "nosniff"
-    
-    # XSS Protection
-    Header always set X-XSS-Protection "1; mode=block"
-    
-    # Referrer Policy
-    Header always set Referrer-Policy "strict-origin-when-cross-origin"
-    
-    # Content Security Policy - Apenas recursos locais e ZXing
-    Header always set Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' https://unpkg.com/@zxing/library@latest/; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self';"
-    
-    # Forçar Content-Type correto para CSS
+    # MIME type para CSS
     <FilesMatch "\.css$">
         Header set Content-Type "text/css; charset=utf-8"
     </FilesMatch>
     
-    # Cache headers para assets estáticos
-    <FilesMatch "\.(jpg|jpeg|png|gif|ico|svg|css|js|woff|woff2|ttf|eot)$">
-        Header set Cache-Control "public, max-age=31536000, immutable"
-    </FilesMatch>
-    
-    # No cache para páginas dinâmicas
-    <FilesMatch "\.(php|html)$">
-        Header set Cache-Control "no-cache, no-store, must-revalidate"
-        Header set Pragma "no-cache"
-        Header set Expires "0"
-    </FilesMatch>
+    # Security headers básicos
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set X-Frame-Options "SAMEORIGIN"
 </IfModule>
-
-# Compressão gzip
-<IfModule mod_deflate.c>
-    AddOutputFilterByType DEFLATE text/html text/plain text/xml text/css text/javascript application/javascript application/json application/xml
-</IfModule>
-
-# Bloquear acesso a arquivos sensíveis
-<FilesMatch "\.(env|log|ini|conf|bak|backup|old|tmp)$">
-    Require all denied
-</FilesMatch>
