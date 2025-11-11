@@ -1,0 +1,14 @@
+# Configuração específica para arquivos CSS compilados
+<IfModule mod_mime.c>
+    AddType text/css .css
+</IfModule>
+
+<IfModule mod_headers.c>
+    # Forçar Content-Type correto para CSS
+    <FilesMatch "\.css$">
+        Header set Content-Type "text/css; charset=utf-8"
+    </FilesMatch>
+    
+    # Cache longo para CSS compilado
+    Header set Cache-Control "public, max-age=31536000, immutable"
+</IfModule>
