@@ -19,6 +19,12 @@ RewriteCond %{REQUEST_URI} ^/frontend/
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteRule ^frontend/.*$ /frontend/index.html [L]
 
+# MIME Types para arquivos CSS
+<IfModule mod_mime.c>
+    AddType text/css .css
+    AddType application/javascript .js
+</IfModule>
+
 # Security Headers
 <IfModule mod_headers.c>
     # Prevenir clickjacking
@@ -33,18 +39,13 @@ RewriteRule ^frontend/.*$ /frontend/index.html [L]
     # Referrer Policy
     Header always set Referrer-Policy "strict-origin-when-cross-origin"
     
-# Content Security Policy - Apenas recursos locais e ZXing
-Header always set Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' https://unpkg.com/@zxing/library@latest/; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self';"
+    # Content Security Policy - Apenas recursos locais e ZXing
+    Header always set Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' https://unpkg.com/@zxing/library@latest/; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self';"
     
-    # CORS - Apenas para requisições cross-origin (se necessário)
-    # Para same-origin requests, CORS não é necessário
-    # Se precisar de CORS, descomente e configure a origem específica
-    # SetEnvIfNoCase Origin "^(.+)$" CORS_ORIGIN=$1
-    # Header always set Access-Control-Allow-Origin "%{CORS_ORIGIN}e" env=CORS_ORIGIN
-    # Header always set Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS"
-    # Header always set Access-Control-Allow-Headers "Content-Type, Authorization, X-CSRF-Token, X-Requested-With"
-    # Header always set Access-Control-Allow-Credentials "true"
-    # Header always set Access-Control-Max-Age "3600"
+    # Forçar Content-Type correto para CSS
+    <FilesMatch "\.css$">
+        Header set Content-Type "text/css; charset=utf-8"
+    </FilesMatch>
     
     # Cache headers para assets estáticos
     <FilesMatch "\.(jpg|jpeg|png|gif|ico|svg|css|js|woff|woff2|ttf|eot)$">
@@ -58,21 +59,6 @@ Header always set Content-Security-Policy "default-src 'self'; script-src 'self'
         Header set Expires "0"
     </FilesMatch>
 </IfModule>
-
-# MIME Types para arquivos CSS
-<IfModule mod_mime.c>
-    AddType text/css .css
-</IfModule>
-
-# Configuração específica para arquivos CSS no frontend/dist
-<Directory "frontend/dist">
-    <IfModule mod_mime.c>
-        AddType text/css .css
-    </IfModule>
-    <IfModule mod_headers.c>
-        Header set Content-Type "text/css; charset=utf-8"
-    </IfModule>
-</Directory>
 
 # Compressão gzip
 <IfModule mod_deflate.c>
