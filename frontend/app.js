@@ -2045,6 +2045,7 @@ function showSessionDetails(session, counts) {
                                 <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Qtd. Contada</th>
                                 <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Diferença</th>
                                 <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Data</th>
+                                ${session.status === 'aberta' ? '<th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Ações</th>' : ''}
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-gray-200">
@@ -2056,6 +2057,14 @@ function showSessionDetails(session, counts) {
                                     <td class="px-4 py-2 text-sm">${count.counted_quantity}</td>
                                     <td class="px-4 py-2 text-sm ${count.difference > 0 ? 'text-green-600' : count.difference < 0 ? 'text-red-600' : ''}">${count.difference > 0 ? '+' : ''}${count.difference}</td>
                                     <td class="px-4 py-2 text-sm">${new Date(count.counted_at).toLocaleString('pt-PT')}</td>
+                                    ${session.status === 'aberta' ? `
+                                        <td class="px-4 py-2 text-sm">
+                                            <button onclick="editCount(${count.id}, ${count.counted_quantity}, '${(count.notes || '').replace(/'/g, "\\'")}')" 
+                                                    class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-xs">
+                                                ✏️ Editar
+                                            </button>
+                                        </td>
+                                    ` : ''}
                                 </tr>
                             `).join('')}
                         </tbody>
@@ -2066,14 +2075,20 @@ function showSessionDetails(session, counts) {
         ` : '<div class="mt-6 text-center text-gray-500">Nenhuma contagem realizada ainda.</div>'}
         
         <!-- Ações -->
-        <div class="mt-6 flex space-x-3">
+        <div class="mt-6 flex space-x-3 flex-wrap gap-2">
+            ${session.status === 'aberta' ? `
+                <button onclick="closeSession(${session.id})" 
+                        class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-semibold transition-colors">
+                    🔒 Fechar Sessão
+                </button>
+            ` : ''}
             <a href="${API_BASE}/export_session.php?id=${session.id}&format=csv" 
                class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg">
-                Exportar CSV
+                📥 Exportar CSV
             </a>
             <a href="${API_BASE}/export_session.php?id=${session.id}&format=json" 
                class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg">
-                Exportar JSON
+                📥 Exportar JSON
             </a>
         </div>
     `;
@@ -2088,6 +2103,150 @@ function closeSessionDetails() {
         detailsCard.classList.add('hidden');
     }
 }
+
+// Fechar sessão de inventário
+async function closeSession(sessionId) {
+    if (!sessionId) {
+        showToast('ID da sessão não fornecido', 'error');
+        return;
+    }
+
+    // Confirmar ação
+    if (!confirm('Tem certeza que deseja fechar esta sessão? Esta ação não pode ser desfeita.')) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`${API_BASE}/session_count.php`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            credentials: 'include',
+            body: JSON.stringify({
+                session_id: sessionId,
+                status: 'fechada'
+            })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            showToast('Sessão fechada com sucesso!', 'success');
+            
+            // Recarregar detalhes da sessão para atualizar o status
+            await loadSessionInfo(sessionId, true);
+            
+            // Recarregar lista de sessões
+            await loadSessions();
+            
+            // Se a sessão fechada era a sessão atual do scanner, limpar seleção
+            if (currentSessionId === sessionId) {
+                currentSessionId = null;
+                const sessionSelect = document.getElementById('sessionSelect');
+                if (sessionSelect) {
+                    sessionSelect.value = '';
+                }
+            }
+        } else {
+            showToast(data.message || 'Erro ao fechar sessão', 'error');
+        }
+    } catch (error) {
+        console.error('Erro ao fechar sessão:', error);
+        showToast('Erro ao fechar sessão. Tente novamente.', 'error');
+    }
+}
+
+// Tornar função global para uso em onclick
+window.closeSession = closeSession;
+
+// Editar contagem
+function editCount(countId, countedQuantity, notes) {
+    const modal = document.getElementById('editCountModal');
+    const countIdInput = document.getElementById('editCountId');
+    const quantityInput = document.getElementById('editCountedQuantity');
+    const notesInput = document.getElementById('editCountNotes');
+    
+    if (!modal || !countIdInput || !quantityInput || !notesInput) {
+        showToast('Erro ao abrir modal de edição', 'error');
+        return;
+    }
+    
+    // Preencher campos
+    countIdInput.value = countId;
+    quantityInput.value = countedQuantity;
+    notesInput.value = notes || '';
+    
+    // Mostrar modal
+    modal.classList.remove('hidden');
+}
+
+// Fechar modal de editar contagem
+function closeEditCountModal() {
+    const modal = document.getElementById('editCountModal');
+    if (modal) {
+        modal.classList.add('hidden');
+    }
+}
+
+// Atualizar contagem
+async function updateCount(event) {
+    event.preventDefault();
+    
+    const countId = document.getElementById('editCountId').value;
+    const countedQuantity = parseInt(document.getElementById('editCountedQuantity').value);
+    const notes = document.getElementById('editCountNotes').value;
+    
+    if (!countId || countedQuantity < 0) {
+        showToast('Dados inválidos', 'error');
+        return;
+    }
+    
+    try {
+        showLoading();
+        const response = await fetch(`${API_BASE}/session_count.php`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            credentials: 'include',
+            body: JSON.stringify({
+                count_id: countId,
+                counted_quantity: countedQuantity,
+                notes: notes
+            })
+        });
+        
+        const data = await response.json();
+        hideLoading();
+        
+        if (data.success) {
+            showToast('Contagem atualizada com sucesso!', 'success');
+            closeEditCountModal();
+            
+            // Recarregar detalhes da sessão para atualizar a lista
+            const sessionDetailsCard = document.getElementById('sessionDetailsCard');
+            if (sessionDetailsCard && !sessionDetailsCard.classList.contains('hidden')) {
+                // Se a card de detalhes estiver aberta, recarregar
+                const sessionId = currentSessionId;
+                if (sessionId) {
+                    await loadSessionInfo(sessionId, true);
+                }
+            }
+        } else {
+            showToast(data.message || 'Erro ao atualizar contagem', 'error');
+        }
+    } catch (error) {
+        hideLoading();
+        console.error('Erro ao atualizar contagem:', error);
+        showToast('Erro ao atualizar contagem. Tente novamente.', 'error');
+    }
+}
+
+// Tornar funções globais para uso em onclick
+window.editCount = editCount;
+window.closeEditCountModal = closeEditCountModal;
+window.updateCount = updateCount;
 
 // Fazer Upload de Ficheiro
 async function uploadFile() {
@@ -3587,10 +3746,6 @@ async function saveUser(e) {
             credentials: 'include'
         });
         
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        
         const responseText = await response.text();
         let data;
         
@@ -3605,12 +3760,18 @@ async function saveUser(e) {
         
         hideLoading();
         
-        if (data.success) {
+        if (response.ok && data.success) {
             showToast(userId ? 'Utilizador atualizado com sucesso' : 'Utilizador criado com sucesso');
             closeUserModal();
             loadUsers(currentUsersPage, currentUsersSearch);
         } else {
-            showToast(data.message || 'Erro ao guardar utilizador', 'error');
+            const errorMessage = data && data.message ? data.message : `Erro ao guardar utilizador (HTTP ${response.status})`;
+            showToast(errorMessage, 'error');
+            console.error('saveUser - erro na resposta:', {
+                status: response.status,
+                statusText: response.statusText,
+                body: data
+            });
         }
     } catch (error) {
         hideLoading();

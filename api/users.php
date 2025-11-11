@@ -138,10 +138,19 @@ function handleCreateUser($input) {
     try {
         $db = getDB();
         
+        error_log('handleCreateUser - payload: ' . json_encode($input));
+        
         $username = sanitizeInput($input['username'] ?? '');
         $email = sanitizeInput($input['email'] ?? '');
         $password = $input['password'] ?? '';
         $role = sanitizeInput($input['role'] ?? 'operador');
+        $normalizedRole = strtolower($role);
+        if ($normalizedRole === 'operator') {
+            error_log('handleCreateUser - normalizing role "operator" to "operador"');
+            $role = 'operador';
+        } elseif ($normalizedRole === 'admin') {
+            $role = 'admin';
+        }
         $isActive = isset($input['is_active']) ? (bool)$input['is_active'] : true;
         
         // Validações
@@ -160,6 +169,7 @@ function handleCreateUser($input) {
         }
         
         if (!in_array($role, ['admin', 'operador'])) {
+            error_log('handleCreateUser - role inválida recebida: ' . $role);
             sendJsonResponse([
                 'success' => false,
                 'message' => 'Role inválida'
@@ -351,6 +361,13 @@ function handleUpdateUser($input) {
         
         if (isset($input['role'])) {
             $role = sanitizeInput($input['role']);
+            $normalizedRole = strtolower($role);
+            if ($normalizedRole === 'operator') {
+                error_log('handleUpdateUser - normalizing role "operator" to "operador"');
+                $role = 'operador';
+            } elseif ($normalizedRole === 'admin') {
+                $role = 'admin';
+            }
             if (!in_array($role, ['admin', 'operador'])) {
                 sendJsonResponse([
                     'success' => false,

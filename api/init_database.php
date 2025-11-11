@@ -216,8 +216,7 @@ try {
             FOREIGN KEY (session_id) REFERENCES inventory_sessions(id) ON DELETE CASCADE,
             FOREIGN KEY (item_id) REFERENCES items(id) ON DELETE CASCADE,
             INDEX idx_session (session_id),
-            INDEX idx_item (item_id),
-            UNIQUE KEY unique_session_item (session_id, item_id)
+            INDEX idx_item (item_id)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
 
         // Tabela de movimentos de stock

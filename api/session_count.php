@@ -324,18 +324,12 @@ try {
                     ], 500);
                 }
                 
-                // Inserir ou atualizar contagem
+                // Inserir nova contagem (sempre criar novo registo)
                 $stmt = $db->prepare("
                     INSERT INTO inventory_counts 
                         (session_id, item_id, counted_quantity, expected_quantity, difference, notes)
                     VALUES 
                         (:session_id, :item_id, :counted_quantity, :expected_quantity, :difference, :notes)
-                    ON DUPLICATE KEY UPDATE
-                        counted_quantity = :counted_quantity2,
-                        expected_quantity = :expected_quantity2,
-                        difference = :difference2,
-                        notes = :notes2,
-                        counted_at = CURRENT_TIMESTAMP
                 ");
                 $stmt->execute([
                     'session_id' => $sessionId,
@@ -343,56 +337,19 @@ try {
                     'counted_quantity' => $countedQuantity,
                     'expected_quantity' => $expectedQuantity,
                     'difference' => $difference,
-                    'notes' => sanitizeInput($input['notes'] ?? ''),
-                    'counted_quantity2' => $countedQuantity,
-                    'expected_quantity2' => $expectedQuantity,
-                    'difference2' => $difference,
-                    'notes2' => sanitizeInput($input['notes'] ?? '')
+                    'notes' => sanitizeInput($input['notes'] ?? '')
                 ]);
+                
+                $countId = $db->lastInsertId();
 
-                // Criar movimento de stock se houver diferença
-                if ($difference != 0) {
-                    try {
-                        $movementType = $difference > 0 ? 'entrada' : 'saida';
-                        $movementQuantity = abs($difference);
-                        $reason = "Ajuste de inventário - Sessão: " . $sessionId . " (Contado: $countedQuantity, Esperado: $expectedQuantity)";
-                        
-                        // Verificar se a tabela stock_movements existe
-                        $checkStockTable = $db->query("SHOW TABLES LIKE 'stock_movements'");
-                        if ($checkStockTable->rowCount() > 0) {
-                            $stockStmt = $db->prepare("
-                                INSERT INTO stock_movements (item_id, movement_type, quantity, reason, user_id)
-                                VALUES (:item_id, :movement_type, :quantity, :reason, :user_id)
-                            ");
-                            $stockStmt->execute([
-                                'item_id' => $item['id'],
-                                'movement_type' => $movementType,
-                                'quantity' => $difference, // Manter sinal (+ ou -)
-                                'reason' => $reason,
-                                'user_id' => $userId
-                            ]);
-                            
-                            // Atualizar quantidade do item
-                            $updateItemStmt = $db->prepare("
-                                UPDATE items SET quantity = :new_quantity WHERE id = :item_id
-                            ");
-                            $updateItemStmt->execute([
-                                'new_quantity' => $countedQuantity,
-                                'item_id' => $item['id']
-                            ]);
-                            
-                            error_log("Stock movement created: Item {$item['id']}, Type: $movementType, Quantity: $difference");
-                        }
-                    } catch (PDOException $e) {
-                        error_log("Error creating stock movement: " . $e->getMessage());
-                        // Não falhar a contagem por causa do movimento
-                    }
-                }
+                // Nota: Movimentos de stock serão criados apenas quando a sessão for fechada
+                // Isso permite múltiplas contagens do mesmo artigo sem atualizar o stock a cada scan
 
                 sendJsonResponse([
                     'success' => true,
                     'message' => 'Contagem registada com sucesso',
                     'count' => [
+                        'id' => $countId,
                         'item_id' => $item['id'],
                         'counted_quantity' => $countedQuantity,
                         'expected_quantity' => $expectedQuantity,
@@ -403,37 +360,102 @@ try {
             break;
 
         case 'PUT':
-            // Atualizar sessão (fechar, cancelar, etc.)
+            // Atualizar sessão (fechar, cancelar, etc.) ou contagem
             $input = json_decode(file_get_contents('php://input'), true);
-            $sessionId = $input['session_id'] ?? null;
-            $status = sanitizeInput($input['status'] ?? '');
-
-            if (!$sessionId || !in_array($status, ['aberta', 'fechada', 'cancelada'])) {
+            $countId = $input['count_id'] ?? null;
+            
+            // Se tiver count_id, é para atualizar uma contagem
+            if ($countId) {
+                $countedQuantity = intval($input['counted_quantity'] ?? 0);
+                $notes = sanitizeInput($input['notes'] ?? '');
+                
+                if (!$countId || $countedQuantity < 0) {
+                    sendJsonResponse([
+                        'success' => false,
+                        'message' => 'ID da contagem e quantidade válida são obrigatórios'
+                    ], 400);
+                }
+                
+                // Buscar contagem existente
+                $stmt = $db->prepare("
+                    SELECT c.*, i.quantity as expected_quantity 
+                    FROM inventory_counts c
+                    INNER JOIN items i ON c.item_id = i.id
+                    WHERE c.id = :count_id
+                ");
+                $stmt->execute(['count_id' => $countId]);
+                $count = $stmt->fetch();
+                
+                if (!$count) {
+                    sendJsonResponse([
+                        'success' => false,
+                        'message' => 'Contagem não encontrada'
+                    ], 404);
+                }
+                
+                // Recalcular diferença
+                $expectedQuantity = $count['expected_quantity'];
+                $difference = $countedQuantity - $expectedQuantity;
+                
+                // Atualizar contagem
+                $stmt = $db->prepare("
+                    UPDATE inventory_counts 
+                    SET counted_quantity = :counted_quantity,
+                        difference = :difference,
+                        notes = :notes,
+                        counted_at = CURRENT_TIMESTAMP
+                    WHERE id = :id
+                ");
+                $stmt->execute([
+                    'id' => $countId,
+                    'counted_quantity' => $countedQuantity,
+                    'difference' => $difference,
+                    'notes' => $notes
+                ]);
+                
                 sendJsonResponse([
-                    'success' => false,
-                    'message' => 'ID da sessão e status válido são obrigatórios'
-                ], 400);
+                    'success' => true,
+                    'message' => 'Contagem atualizada com sucesso',
+                    'count' => [
+                        'id' => $countId,
+                        'item_id' => $count['item_id'],
+                        'counted_quantity' => $countedQuantity,
+                        'expected_quantity' => $expectedQuantity,
+                        'difference' => $difference
+                    ]
+                ]);
+            } else {
+                // Atualizar sessão (fechar, cancelar, etc.)
+                $sessionId = $input['session_id'] ?? null;
+                $status = sanitizeInput($input['status'] ?? '');
+
+                if (!$sessionId || !in_array($status, ['aberta', 'fechada', 'cancelada'])) {
+                    sendJsonResponse([
+                        'success' => false,
+                        'message' => 'ID da sessão e status válido são obrigatórios'
+                    ], 400);
+                }
+
+                $finishedAt = ($status === 'fechada' || $status === 'cancelada') 
+                    ? date('Y-m-d H:i:s') 
+                    : null;
+
+                $stmt = $db->prepare("
+                    UPDATE inventory_sessions 
+                    SET status = :status, finished_at = :finished_at
+                    WHERE id = :id
+                ");
+                $stmt->execute([
+                    'id' => $sessionId,
+                    'status' => $status,
+                    'finished_at' => $finishedAt
+                ]);
+
+                sendJsonResponse([
+                    'success' => true,
+                    'message' => 'Sessão atualizada com sucesso'
+                ]);
             }
-
-            $finishedAt = ($status === 'fechada' || $status === 'cancelada') 
-                ? date('Y-m-d H:i:s') 
-                : null;
-
-            $stmt = $db->prepare("
-                UPDATE inventory_sessions 
-                SET status = :status, finished_at = :finished_at
-                WHERE id = :id
-            ");
-            $stmt->execute([
-                'id' => $sessionId,
-                'status' => $status,
-                'finished_at' => $finishedAt
-            ]);
-
-            sendJsonResponse([
-                'success' => true,
-                'message' => 'Sessão atualizada com sucesso'
-            ]);
             break;
 
         default:

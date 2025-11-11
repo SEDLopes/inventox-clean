@@ -1,7 +1,7 @@
 <?php
 /**
  * InventoX - Environment Variables Loader
- * Carrega variáveis de ambiente do ficheiro .env
+ * Carrega variáveis de ambiente automaticamente de múltiplas fontes
  */
 
 function loadEnv($envPath = null) {
