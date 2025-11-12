@@ -170,6 +170,29 @@
             animation: voice-pulse 1s infinite;
         }
         
+        /* Scanner Controls Fix */
+        .scanner-controls {
+            position: relative;
+            z-index: 1;
+        }
+        
+        .scanner-controls .flex {
+            position: relative;
+            z-index: 2;
+        }
+        
+        .scanner-controls input[type="checkbox"] {
+            position: relative;
+            z-index: 3;
+            flex-shrink: 0;
+        }
+        
+        .scanner-controls label,
+        .scanner-controls p {
+            position: relative;
+            z-index: 2;
+        }
+        
         /* Analytics Styles */
         .chart-period {
             padding: 0.25rem 0.75rem;
@@ -531,7 +554,7 @@
                 </div>
 
                 <!-- Enhanced Scanner Controls -->
-                <div class="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                <div class="scanner-controls mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
                     <h4 class="text-sm font-semibold text-blue-800 mb-4">⚙️ Configurações do Scanner</h4>
                     <div class="space-y-3">
                         <!-- Continuous Scan Mode -->
