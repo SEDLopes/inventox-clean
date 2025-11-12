@@ -3,18 +3,11 @@
  * Analytics API - Fornece dados reais de análise da base de dados
  */
 
-require_once 'config.php';
-require_once 'auth.php';
+require_once 'db.php';
 
 // Verificar autenticação e role de admin
 requireAuth();
-$userRole = $_SESSION['user_role'] ?? '';
-if ($userRole !== 'admin') {
-    sendJsonResponse([
-        'success' => false,
-        'message' => 'Acesso negado. Apenas administradores podem aceder à análise.'
-    ], 403);
-}
+requireAdmin();
 
 // Headers CORS
 header('Access-Control-Allow-Origin: *');
@@ -49,7 +42,6 @@ try {
 }
 
 function handleGetAnalytics() {
-    global $db;
     
     // Obter parâmetros
     $timeRange = isset($_GET['timeRange']) ? (int)$_GET['timeRange'] : 30;
@@ -118,14 +110,14 @@ function handleGetAnalytics() {
 }
 
 function calculateKPIs($startDate, $endDate, $timeRange) {
-    global $db;
+    $db = getDB();
     
     // Total de scans (contagens de inventário)
     $stmt = $db->prepare("
         SELECT COUNT(*) as total_scans,
                SUM(CASE WHEN difference = 0 THEN 1 ELSE 0 END) as accurate_scans
         FROM inventory_counts 
-        WHERE created_at BETWEEN ? AND ?
+        WHERE counted_at BETWEEN ? AND ?
     ");
     $stmt->execute([$startDate, $endDate]);
     $scanData = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -135,7 +127,7 @@ function calculateKPIs($startDate, $endDate, $timeRange) {
     $accuracy = $totalScans > 0 ? round(($accurateScans / $totalScans) * 100, 1) : 0;
     
     // Sessões ativas
-    $stmt = $db->prepare("SELECT COUNT(*) as active_sessions FROM inventory_sessions WHERE status = 'open'");
+    $stmt = $db->prepare("SELECT COUNT(*) as active_sessions FROM inventory_sessions WHERE status = 'aberta'");
     $stmt->execute();
     $activeSessions = (int)$stmt->fetchColumn();
     
@@ -153,7 +145,7 @@ function calculateKPIs($startDate, $endDate, $timeRange) {
         SELECT COUNT(*) as prev_total_scans,
                SUM(CASE WHEN difference = 0 THEN 1 ELSE 0 END) as prev_accurate_scans
         FROM inventory_counts 
-        WHERE created_at BETWEEN ? AND ?
+        WHERE counted_at BETWEEN ? AND ?
     ");
     $stmt->execute([$previousStartDate, $previousEndDate]);
     $prevData = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -186,7 +178,7 @@ function calculateKPIs($startDate, $endDate, $timeRange) {
 }
 
 function calculateTrends($startDate, $endDate, $period) {
-    global $db;
+    $db = getDB();
     
     $trends = [];
     $dateFormat = '';
@@ -209,13 +201,13 @@ function calculateTrends($startDate, $endDate, $period) {
     $stmt = $db->prepare("
         SELECT 
             DATE_FORMAT(created_at, ?) as period_key,
-            DATE(created_at) as date,
+            DATE(counted_at) as date,
             COUNT(*) as scans,
             SUM(CASE WHEN difference = 0 THEN 1 ELSE 0 END) as accurate_scans,
             AVG(CASE WHEN difference = 0 THEN 100 ELSE 0 END) as accuracy
         FROM inventory_counts 
-        WHERE created_at BETWEEN ? AND ?
-        GROUP BY period_key, DATE(created_at)
+        WHERE counted_at BETWEEN ? AND ?
+        GROUP BY period_key, DATE(counted_at)
         ORDER BY date ASC
     ");
     
@@ -244,11 +236,11 @@ function calculateHeatmap() {
     
     $stmt = $db->prepare("
         SELECT 
-            DATE(created_at) as date,
+            DATE(counted_at) as date,
             COUNT(*) as scans
         FROM inventory_counts 
-        WHERE created_at BETWEEN ? AND ?
-        GROUP BY DATE(created_at)
+        WHERE counted_at BETWEEN ? AND ?
+        GROUP BY DATE(counted_at)
         ORDER BY date ASC
     ");
     
@@ -289,7 +281,7 @@ function calculateHeatmap() {
 }
 
 function calculateCategoryDistribution($startDate, $endDate) {
-    global $db;
+    $db = getDB();
     
     $stmt = $db->prepare("
         SELECT 
@@ -325,7 +317,7 @@ function calculateCategoryDistribution($startDate, $endDate) {
 }
 
 function calculateUserRanking($startDate, $endDate) {
-    global $db;
+    $db = getDB();
     
     $stmt = $db->prepare("
         SELECT 
@@ -475,9 +467,4 @@ function generateRecommendations($kpis, $trends, $categories, $users) {
     return $recommendations;
 }
 
-function sendJsonResponse($data, $statusCode = 200) {
-    http_response_code($statusCode);
-    echo json_encode($data, JSON_UNESCAPED_UNICODE);
-    exit();
-}
 ?>
