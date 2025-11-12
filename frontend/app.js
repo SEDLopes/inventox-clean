@@ -3474,8 +3474,16 @@ async function loadStockHistory(page = 1) {
                 success: data.success,
                 movementsCount: data.movements ? data.movements.length : 0,
                 pagination: data.pagination,
-                useEnhanced: useEnhanced
+                useEnhanced: useEnhanced,
+                debug: data.debug || 'N/A',
+                filters: data.filters || 'N/A'
             });
+            
+            // Se não há dados mas há debug info, mostrar no console
+            if (data.debug && data.debug.total_counts_in_db > 0 && data.movements.length === 0) {
+                console.warn('⚠️ Há dados na BD mas não aparecem no histórico:', data.debug);
+                console.warn('Query usada:', data.debug.count_query);
+            }
         } catch (parseError) {
             console.error('Erro ao fazer parse do JSON:', parseError);
             console.error('Resposta recebida:', responseText.substring(0, 500));

@@ -168,18 +168,26 @@ try {
     
     // === EXECUTAR QUERIES ===
     $allMovements = [];
+    $debugInfo = [];
     
     // Executar query de contagens
     try {
+        // Debug: verificar se há dados na tabela
+        $totalCountsCheck = $db->query("SELECT COUNT(*) FROM inventory_counts")->fetchColumn();
+        $debugInfo['total_counts_in_db'] = (int)$totalCountsCheck;
+        
         $stmt = $db->prepare($countQuery);
         foreach ($countParams as $key => $value) {
             $stmt->bindValue(":{$key}", $value);
         }
         $stmt->execute();
         $inventoryCounts = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        $debugInfo['counts_found'] = count($inventoryCounts);
+        $debugInfo['count_query'] = $countQuery;
         $allMovements = array_merge($allMovements, $inventoryCounts);
     } catch (Exception $e) {
         error_log("Inventory counts query error: " . $e->getMessage());
+        $debugInfo['counts_error'] = $e->getMessage();
     }
     
     // Executar query de movimentos (se tabela existir)
@@ -266,7 +274,8 @@ try {
             'generated_at' => date('Y-m-d H:i:s'),
             'data_source' => 'real_database',
             'performance' => 'optimized'
-        ]
+        ],
+        'debug' => $debugInfo
     ]);
     
 } catch (Exception $e) {
