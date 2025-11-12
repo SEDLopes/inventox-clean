@@ -532,34 +532,34 @@
 
                 <!-- Enhanced Scanner Controls -->
                 <div class="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                    <h4 class="text-sm font-semibold text-blue-800 mb-3">⚙️ Configurações do Scanner</h4>
-                    <div class="flex flex-wrap gap-3 justify-start">
+                    <h4 class="text-sm font-semibold text-blue-800 mb-4">⚙️ Configurações do Scanner</h4>
+                    <div class="space-y-3">
                         <!-- Continuous Scan Mode -->
-                        <label class="flex items-center space-x-2 cursor-pointer p-2 hover:bg-blue-100 rounded-lg border border-blue-200 bg-white min-w-fit">
-                            <input type="checkbox" id="continuousScanMode" class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 focus:ring-2 flex-shrink-0">
-                            <div class="flex flex-col">
-                                <span class="text-sm font-medium text-gray-700 whitespace-nowrap">Modo Contínuo</span>
-                                <span class="text-xs text-gray-500">Scan automático</span>
+                        <div class="flex items-center space-x-3">
+                            <input type="checkbox" id="continuousScanMode" class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+                            <div>
+                                <label for="continuousScanMode" class="text-sm font-medium text-gray-700 cursor-pointer">Modo Contínuo</label>
+                                <p class="text-xs text-gray-500">Digitalizar códigos automaticamente sem parar</p>
                             </div>
-                        </label>
+                        </div>
                         
                         <!-- Audio Feedback -->
-                        <label class="flex items-center space-x-2 cursor-pointer p-2 hover:bg-blue-100 rounded-lg border border-blue-200 bg-white min-w-fit">
-                            <input type="checkbox" id="audioFeedback" class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 focus:ring-2 flex-shrink-0">
-                            <div class="flex flex-col">
-                                <span class="text-sm font-medium text-gray-700 whitespace-nowrap">Som de Confirmação</span>
-                                <span class="text-xs text-gray-500">Áudio ao escanear</span>
+                        <div class="flex items-center space-x-3">
+                            <input type="checkbox" id="audioFeedback" class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+                            <div>
+                                <label for="audioFeedback" class="text-sm font-medium text-gray-700 cursor-pointer">Som de Confirmação</label>
+                                <p class="text-xs text-gray-500">Reproduzir som quando um código for digitalizado</p>
                             </div>
-                        </label>
+                        </div>
                         
                         <!-- Auto-focus -->
-                        <label class="flex items-center space-x-2 cursor-pointer p-2 hover:bg-blue-100 rounded-lg border border-blue-200 bg-white min-w-fit">
-                            <input type="checkbox" id="autoFocus" class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 focus:ring-2 flex-shrink-0" checked>
-                            <div class="flex flex-col">
-                                <span class="text-sm font-medium text-gray-700 whitespace-nowrap">Auto-foco</span>
-                                <span class="text-xs text-gray-500">Foco automático</span>
+                        <div class="flex items-center space-x-3">
+                            <input type="checkbox" id="autoFocus" class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" checked>
+                            <div>
+                                <label for="autoFocus" class="text-sm font-medium text-gray-700 cursor-pointer">Auto-foco</label>
+                                <p class="text-xs text-gray-500">Focar automaticamente a câmara para melhor leitura</p>
                             </div>
-                        </label>
+                        </div>
                     </div>
                 </div>
 
