@@ -6,6 +6,17 @@
 
 require_once __DIR__ . '/db.php';
 
+// Headers CORS (ANTES da autenticação)
+header('Access-Control-Allow-Origin: *');
+header('Access-Control-Allow-Methods: POST, OPTIONS');
+header('Access-Control-Allow-Headers: Content-Type, Authorization');
+header('Content-Type: application/json');
+
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+    http_response_code(200);
+    exit();
+}
+
 // Verificar autenticação (requireAuth já inicia a sessão se necessário)
 requireAuth();
 
@@ -174,8 +185,37 @@ try {
             sendJsonResponse(['success' => false, 'message' => 'Colunas obrigatórias em falta no CSV: ' . implode(', ', $missingCols)], 400);
         }
 
+        // Aumentar timeout para importações grandes
+        set_time_limit(300); // 5 minutos
+        ini_set('max_execution_time', 300);
+        
         $db = getDB();
         $imported = 0; $updated = 0; $errors = [];
+        
+        // Cache de categorias para evitar queries repetidas
+        $categoryCache = [];
+        $stmtCat = $db->prepare("SELECT id, name FROM categories");
+        $stmtCat->execute();
+        $allCategories = $stmtCat->fetchAll(PDO::FETCH_ASSOC);
+        foreach ($allCategories as $cat) {
+            $categoryCache[strtolower(trim($cat['name']))] = $cat['id'];
+        }
+        
+        // Contar total de linhas para progresso (aproximado)
+        $totalLines = 0;
+        $fileHandleForCount = fopen($uploadPath, 'r');
+        if ($fileHandleForCount) {
+            while (fgetcsv($fileHandleForCount, 0, $delimiter) !== FALSE) {
+                $totalLines++;
+            }
+            fclose($fileHandleForCount);
+        }
+        $totalLines = max(1, $totalLines - 1); // Menos 1 para o header
+        
+        // Iniciar transação para melhor performance
+        $db->beginTransaction();
+        $batchSize = 100; // Processar em lotes de 100
+        $currentBatch = 0;
 
         $lineNum = 1; // Começa em 1 para o header, dados começam na linha 2
         while (($rowData = fgetcsv($fileHandle, 0, $delimiter)) !== FALSE) {
@@ -199,20 +239,18 @@ try {
                     continue;
                 }
 
-                // Processar categoria
+                // Processar categoria (usar cache)
                 $categoryId = null;
                 if (!empty($itemData['category'])) {
-                    $stmtCat = $db->prepare("SELECT id FROM categories WHERE name = :name");
-                    $stmtCat->execute(['name' => $itemData['category']]);
-                    $category = $stmtCat->fetch();
-
-                    if ($category) {
-                        $categoryId = $category['id'];
+                    $categoryNameLower = strtolower(trim($itemData['category']));
+                    if (isset($categoryCache[$categoryNameLower])) {
+                        $categoryId = $categoryCache[$categoryNameLower];
                     } else {
-                        // Criar nova categoria
+                        // Criar nova categoria e adicionar ao cache
                         $stmtInsertCat = $db->prepare("INSERT INTO categories (name) VALUES (:name)");
                         $stmtInsertCat->execute(['name' => $itemData['category']]);
                         $categoryId = $db->lastInsertId();
+                        $categoryCache[$categoryNameLower] = $categoryId;
                     }
                 }
 
@@ -256,10 +294,34 @@ try {
                     $stmtInsert->execute($params);
                     $imported++;
                 }
+                
+                // Commit em batch para melhor performance
+                $currentBatch++;
+                if ($currentBatch >= $batchSize) {
+                    $db->commit();
+                    $db->beginTransaction();
+                    $currentBatch = 0;
+                }
             } catch (Exception $er) {
-                $errors[] = $er->getMessage();
+                $errors[] = "Linha {$lineNum}: " . $er->getMessage();
+                // Continuar mesmo com erro, mas não incrementar batch
                 continue;
             }
+        }
+
+        // Commit final da transação
+        try {
+            $db->commit();
+        } catch (Exception $e) {
+            $db->rollback();
+            error_log("Import transaction error: " . $e->getMessage());
+            fclose($fileHandle);
+            @unlink($uploadPath);
+            sendJsonResponse([
+                'success' => false,
+                'message' => 'Erro ao finalizar importação: ' . $e->getMessage()
+            ], 500);
+            return;
         }
 
         fclose($fileHandle);
@@ -270,7 +332,9 @@ try {
             'message' => "Importação CSV concluída: {$imported} importados, {$updated} atualizados.",
             'imported' => $imported,
             'updated' => $updated,
-            'errors' => $errors
+            'errors' => $errors,
+            'total_lines' => $totalLines,
+            'processed' => $lineNum - 1
         ]);
     }
 

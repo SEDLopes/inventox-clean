@@ -2278,11 +2278,20 @@ async function uploadFile() {
     formData.append('file', file);
     
     try {
+        // Mostrar loading com mensagem específica para importação
         showLoading();
+        const loadingOverlay = document.getElementById('loadingOverlay');
+        const loadingMessage = loadingOverlay?.querySelector('p');
+        if (loadingMessage) {
+            loadingMessage.textContent = 'A importar artigos... Por favor aguarde. Isto pode demorar alguns minutos para ficheiros grandes.';
+        }
+        
         const response = await fetch(`${API_BASE}/items_import.php`, {
             method: 'POST',
             body: formData,
-            credentials: 'include'
+            credentials: 'include',
+            // Timeout aumentado para importações grandes
+            signal: AbortSignal.timeout(300000) // 5 minutos
         });
         
         const responseText = await response.text();
@@ -2339,8 +2348,12 @@ async function uploadFile() {
         }
     } catch (error) {
         hideLoading();
-        showToast('Erro ao fazer upload', 'error');
-        console.error(error);
+        if (error.name === 'TimeoutError' || error.name === 'AbortError') {
+            showToast('Importação demorou muito tempo. O ficheiro pode ser muito grande. Tente dividir em ficheiros menores.', 'error');
+        } else {
+            showToast('Erro ao fazer upload: ' + (error.message || 'Erro desconhecido'), 'error');
+        }
+        console.error('Import error:', error);
         if (uploadBtn) uploadBtn.disabled = false;
     }
 }
