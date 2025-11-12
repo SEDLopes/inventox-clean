@@ -2394,7 +2394,8 @@ function showToast(message, type = 'success') {
 // Carregar Dashboard
 async function loadDashboard() {
     try {
-        const response = await fetch(`${API_BASE}/stats.php`, {
+        // Usar API otimizada do dashboard
+        const response = await fetch(`${API_BASE}/dashboard_enhanced.php`, {
             credentials: 'include'
         });
         
@@ -2415,15 +2416,26 @@ async function loadDashboard() {
         if (data.success && data.stats) {
             const stats = data.stats;
             
-            // Atualizar cards
+            // Atualizar cards principais
             document.getElementById('statTotalItems').textContent = stats.total_items || 0;
             document.getElementById('statLowStock').textContent = stats.low_stock_items || 0;
-            document.getElementById('statOpenSessions').textContent = stats.open_sessions || 0;
+            document.getElementById('statOpenSessions').textContent = stats.active_sessions || 0;
             
             // Formatar valor do inventário em CVE (Escudos Cabo-verdianos)
             const value = stats.total_inventory_value || 0;
             document.getElementById('statInventoryValue').textContent = 
                 new Intl.NumberFormat('pt-CV', { style: 'currency', currency: 'CVE' }).format(value);
+            
+            // Atualizar métricas do dashboard interativo se existirem
+            const quickStatScans = document.getElementById('quickStatScans');
+            const quickStatSessions = document.getElementById('quickStatSessions');
+            const quickStatAlerts = document.getElementById('quickStatAlerts');
+            const quickStatEfficiency = document.getElementById('quickStatEfficiency');
+            
+            if (quickStatScans) quickStatScans.textContent = stats.total_scans_today || 0;
+            if (quickStatSessions) quickStatSessions.textContent = stats.active_sessions || 0;
+            if (quickStatAlerts) quickStatAlerts.textContent = (data.alerts && data.alerts.length) || 0;
+            if (quickStatEfficiency) quickStatEfficiency.textContent = (stats.efficiency || 0) + '%';
             
             // Lista de stock baixo
             const lowStockList = document.getElementById('lowStockList');
@@ -3426,7 +3438,8 @@ async function loadStockHistory(page = 1) {
             params.append('date_to', dateTo);
         }
         
-        const response = await fetch(`${API_BASE}/stock_history.php?${params.toString()}`, {
+        // Usar API otimizada do histórico
+        const response = await fetch(`${API_BASE}/history_enhanced.php?${params.toString()}`, {
             credentials: 'include'
         });
         
