@@ -108,14 +108,18 @@ function showDashboard(username) {
     const usersTabBtn = document.getElementById('usersTabBtn');
     const historyTabBtn = document.getElementById('historyTabBtn');
     const analyticsTabBtn = document.getElementById('analyticsTabBtn');
+    const deleteAllItemsBtn = document.getElementById('deleteAllItemsBtn');
+    
     if (userRole === 'admin') {
         if (usersTabBtn) usersTabBtn.classList.remove('hidden');
         if (historyTabBtn) historyTabBtn.classList.remove('hidden');
         if (analyticsTabBtn) analyticsTabBtn.classList.remove('hidden');
+        if (deleteAllItemsBtn) deleteAllItemsBtn.classList.remove('hidden');
     } else {
         if (usersTabBtn) usersTabBtn.classList.add('hidden');
         if (historyTabBtn) historyTabBtn.classList.add('hidden');
         if (analyticsTabBtn) analyticsTabBtn.classList.add('hidden');
+        if (deleteAllItemsBtn) deleteAllItemsBtn.classList.add('hidden');
     }
     
     // Carregar dados do dashboard
@@ -3863,6 +3867,148 @@ window.deleteCompany = deleteCompany;
 window.openWarehouseModal = openWarehouseModal;
 window.closeWarehouseModal = closeWarehouseModal;
 window.deleteWarehouse = deleteWarehouse;
+
+// ==========================================
+// Delete All Items Functions
+// ==========================================
+
+function openDeleteAllItemsModal() {
+    const modal = document.getElementById('deleteAllItemsModal');
+    const confirmationInput = document.getElementById('deleteAllConfirmation');
+    const confirmBtn = document.getElementById('confirmDeleteAllBtn');
+    
+    if (modal) {
+        modal.classList.remove('hidden');
+        if (confirmationInput) {
+            confirmationInput.value = '';
+            confirmationInput.focus();
+        }
+        if (confirmBtn) {
+            confirmBtn.disabled = true;
+        }
+    }
+}
+
+function closeDeleteAllItemsModal() {
+    const modal = document.getElementById('deleteAllItemsModal');
+    const confirmationInput = document.getElementById('deleteAllConfirmation');
+    const confirmBtn = document.getElementById('confirmDeleteAllBtn');
+    
+    if (modal) {
+        modal.classList.add('hidden');
+    }
+    if (confirmationInput) {
+        confirmationInput.value = '';
+    }
+    if (confirmBtn) {
+        confirmBtn.disabled = true;
+    }
+}
+
+async function confirmDeleteAllItems() {
+    const confirmationInput = document.getElementById('deleteAllConfirmation');
+    const confirmation = confirmationInput ? confirmationInput.value.trim() : '';
+    
+    if (confirmation !== 'ELIMINAR TUDO') {
+        showErrorToast('Confirmação Inválida', 'Digite "ELIMINAR TUDO" para confirmar');
+        return;
+    }
+    
+    try {
+        showEnhancedLoading('Eliminando Artigos...', 'Esta operação pode demorar alguns momentos');
+        
+        const response = await fetch(`${API_BASE}/items.php?all=true`, {
+            method: 'DELETE',
+            credentials: 'include',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                confirmation: confirmation
+            })
+        });
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        hideEnhancedLoading();
+        
+        if (data.success) {
+            closeDeleteAllItemsModal();
+            showSuccessToast('Artigos Eliminados', data.message);
+            
+            // Recarregar a lista de artigos e dashboard
+            loadItems(1, '');
+            loadDashboard();
+            
+            // Log da ação
+            console.log(`Admin action: ${data.deleted_count} items deleted`);
+            
+        } else {
+            showErrorToast('Erro ao Eliminar', data.message || 'Erro desconhecido');
+        }
+        
+    } catch (error) {
+        hideEnhancedLoading();
+        showErrorToast('Erro de Conexão', 'Não foi possível eliminar os artigos');
+        console.error('Error deleting all items:', error);
+    }
+}
+
+// Event listeners para o modal de eliminar todos os artigos
+document.addEventListener('DOMContentLoaded', function() {
+    // Botão para abrir o modal
+    const deleteAllItemsBtn = document.getElementById('deleteAllItemsBtn');
+    if (deleteAllItemsBtn) {
+        deleteAllItemsBtn.addEventListener('click', openDeleteAllItemsModal);
+    }
+    
+    // Botões do modal
+    const cancelDeleteAllBtn = document.getElementById('cancelDeleteAllBtn');
+    if (cancelDeleteAllBtn) {
+        cancelDeleteAllBtn.addEventListener('click', closeDeleteAllItemsModal);
+    }
+    
+    const confirmDeleteAllBtn = document.getElementById('confirmDeleteAllBtn');
+    if (confirmDeleteAllBtn) {
+        confirmDeleteAllBtn.addEventListener('click', confirmDeleteAllItems);
+    }
+    
+    // Input de confirmação
+    const deleteAllConfirmation = document.getElementById('deleteAllConfirmation');
+    if (deleteAllConfirmation) {
+        deleteAllConfirmation.addEventListener('input', function(e) {
+            const confirmBtn = document.getElementById('confirmDeleteAllBtn');
+            if (confirmBtn) {
+                confirmBtn.disabled = e.target.value.trim() !== 'ELIMINAR TUDO';
+            }
+        });
+        
+        // Enter para confirmar
+        deleteAllConfirmation.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter' && e.target.value.trim() === 'ELIMINAR TUDO') {
+                confirmDeleteAllItems();
+            }
+        });
+    }
+    
+    // Fechar modal ao clicar fora
+    const deleteAllItemsModal = document.getElementById('deleteAllItemsModal');
+    if (deleteAllItemsModal) {
+        deleteAllItemsModal.addEventListener('click', function(e) {
+            if (e.target === deleteAllItemsModal) {
+                closeDeleteAllItemsModal();
+            }
+        });
+    }
+});
+
+// Tornar funções disponíveis globalmente
+window.openDeleteAllItemsModal = openDeleteAllItemsModal;
+window.closeDeleteAllItemsModal = closeDeleteAllItemsModal;
+window.confirmDeleteAllItems = confirmDeleteAllItems;
 
 // ==========================================
 // Export Functions

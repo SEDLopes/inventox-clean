@@ -368,33 +368,92 @@ try {
             break;
             
         case 'DELETE':
-            // Deletar artigo
-            $itemId = $_GET['id'] ?? null;
+            // Verificar se é para eliminar todos os artigos (apenas administradores)
+            $deleteAll = $_GET['all'] ?? null;
             
-            if (!$itemId) {
+            if ($deleteAll === 'true') {
+                // Verificar se o utilizador é administrador
+                requireAdmin();
+                
+                // Obter input JSON para confirmação
+                $input = json_decode(file_get_contents('php://input'), true);
+                $confirmation = $input['confirmation'] ?? '';
+                
+                if ($confirmation !== 'ELIMINAR TUDO') {
+                    sendJsonResponse([
+                        'success' => false,
+                        'message' => 'Confirmação inválida. Digite "ELIMINAR TUDO" para confirmar.'
+                    ], 400);
+                }
+                
+                // Iniciar transação para garantir integridade
+                $db->beginTransaction();
+                
+                try {
+                    // Contar artigos antes de eliminar
+                    $countStmt = $db->query("SELECT COUNT(*) FROM items");
+                    $totalItems = $countStmt->fetchColumn();
+                    
+                    // Eliminar dados relacionados primeiro (para evitar violações de chave estrangeira)
+                    $db->exec("DELETE FROM inventory_counts");
+                    $db->exec("DELETE FROM stock_movements");
+                    
+                    // Eliminar todos os artigos
+                    $db->exec("DELETE FROM items");
+                    
+                    // Reset do auto_increment (opcional)
+                    $db->exec("ALTER TABLE items AUTO_INCREMENT = 1");
+                    
+                    $db->commit();
+                    
+                    // Log da ação crítica
+                    error_log("ADMIN ACTION: User ID " . ($_SESSION['user_id'] ?? 'unknown') . 
+                             " deleted ALL ITEMS ($totalItems items) at " . date('Y-m-d H:i:s'));
+                    
+                    sendJsonResponse([
+                        'success' => true,
+                        'message' => "Todos os artigos foram eliminados com sucesso ($totalItems artigos)",
+                        'deleted_count' => $totalItems
+                    ]);
+                    
+                } catch (Exception $e) {
+                    $db->rollback();
+                    error_log("Error deleting all items: " . $e->getMessage());
+                    sendJsonResponse([
+                        'success' => false,
+                        'message' => 'Erro ao eliminar artigos: ' . $e->getMessage()
+                    ], 500);
+                }
+                
+            } else {
+                // Deletar artigo individual
+                $itemId = $_GET['id'] ?? null;
+                
+                if (!$itemId) {
+                    sendJsonResponse([
+                        'success' => false,
+                        'message' => 'ID do artigo é obrigatório'
+                    ], 400);
+                }
+                
+                // Verificar se artigo existe
+                $checkStmt = $db->prepare("SELECT id FROM items WHERE id = :id");
+                $checkStmt->execute(['id' => $itemId]);
+                if (!$checkStmt->fetch()) {
+                    sendJsonResponse([
+                        'success' => false,
+                        'message' => 'Artigo não encontrado'
+                    ], 404);
+                }
+                
+                $stmt = $db->prepare("DELETE FROM items WHERE id = :id");
+                $stmt->execute(['id' => $itemId]);
+                
                 sendJsonResponse([
-                    'success' => false,
-                    'message' => 'ID do artigo é obrigatório'
-                ], 400);
+                    'success' => true,
+                    'message' => 'Artigo eliminado com sucesso'
+                ]);
             }
-            
-            // Verificar se artigo existe
-            $checkStmt = $db->prepare("SELECT id FROM items WHERE id = :id");
-            $checkStmt->execute(['id' => $itemId]);
-            if (!$checkStmt->fetch()) {
-                sendJsonResponse([
-                    'success' => false,
-                    'message' => 'Artigo não encontrado'
-                ], 404);
-            }
-            
-            $stmt = $db->prepare("DELETE FROM items WHERE id = :id");
-            $stmt->execute(['id' => $itemId]);
-            
-            sendJsonResponse([
-                'success' => true,
-                'message' => 'Artigo eliminado com sucesso'
-            ]);
             break;
             
         default:
