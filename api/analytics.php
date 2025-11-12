@@ -5,9 +5,20 @@
 
 require_once 'db.php';
 
+// Debug: Verificar sessão
+error_log('Analytics API - Session data: ' . print_r($_SESSION, true));
+error_log('Analytics API - Cookies: ' . print_r($_COOKIE, true));
+
 // Verificar autenticação e role de admin
-requireAuth();
-requireAdmin();
+try {
+    requireAuth();
+    error_log('Analytics API - Auth OK');
+    requireAdmin();
+    error_log('Analytics API - Admin OK');
+} catch (Exception $e) {
+    error_log('Analytics API - Auth/Admin Error: ' . $e->getMessage());
+    throw $e;
+}
 
 // Headers CORS
 header('Access-Control-Allow-Origin: *');
