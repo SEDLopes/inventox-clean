@@ -46,13 +46,14 @@ try {
     // === CONSTRUIR QUERY OTIMIZADA ===
     
     // Base query para contagens de inventário (dados principais)
+    // Usar LEFT JOIN para items para incluir contagens mesmo se item foi deletado
     $countQuery = "
         SELECT 
             CONCAT('count_', ic.id) as id,
             'inventory_count' as source_type,
             ic.item_id,
-            i.barcode,
-            i.name as item_name,
+            COALESCE(i.barcode, 'N/A') as barcode,
+            COALESCE(i.name, 'Item Removido') as item_name,
             CASE 
                 WHEN ic.difference > 0 THEN 'entrada'
                 WHEN ic.difference < 0 THEN 'saida'
@@ -63,12 +64,12 @@ try {
             ic.expected_quantity,
             CONCAT('Contagem: ', ic.counted_quantity, ' (esperado: ', ic.expected_quantity, ')') as description,
             ic.user_id,
-            u.username as user_name,
+            COALESCE(u.username, 'Sistema') as user_name,
             ic.session_id,
-            s.name as session_name,
+            COALESCE(s.name, 'Sessão Removida') as session_name,
             ic.counted_at as created_at
         FROM inventory_counts ic
-        INNER JOIN items i ON ic.item_id = i.id
+        LEFT JOIN items i ON ic.item_id = i.id
         LEFT JOIN users u ON ic.user_id = u.id
         LEFT JOIN inventory_sessions s ON ic.session_id = s.id
         WHERE 1=1
@@ -176,6 +177,32 @@ try {
         $totalCountsCheck = $db->query("SELECT COUNT(*) FROM inventory_counts")->fetchColumn();
         $debugInfo['total_counts_in_db'] = (int)$totalCountsCheck;
         
+        // Debug: verificar se há items (para JOIN)
+        $totalItemsCheck = $db->query("SELECT COUNT(*) FROM items")->fetchColumn();
+        $debugInfo['total_items_in_db'] = (int)$totalItemsCheck;
+        
+        // Debug: verificar contagens sem JOIN primeiro
+        $countsWithoutJoin = $db->query("SELECT COUNT(*) FROM inventory_counts")->fetchColumn();
+        $debugInfo['counts_without_join'] = (int)$countsWithoutJoin;
+        
+        // Testar query simples com LEFT JOIN
+        $simpleTestQuery = "
+            SELECT COUNT(*) 
+            FROM inventory_counts ic
+            LEFT JOIN items i ON ic.item_id = i.id
+        ";
+        $countsWithJoin = $db->query($simpleTestQuery)->fetchColumn();
+        $debugInfo['counts_with_join'] = (int)$countsWithJoin;
+        
+        // Verificar se há contagens órfãs (sem items)
+        $orphanedCounts = $db->query("
+            SELECT COUNT(*) 
+            FROM inventory_counts ic
+            LEFT JOIN items i ON ic.item_id = i.id
+            WHERE i.id IS NULL
+        ")->fetchColumn();
+        $debugInfo['orphaned_counts'] = (int)$orphanedCounts;
+        
         $stmt = $db->prepare($countQuery);
         foreach ($countParams as $key => $value) {
             $stmt->bindValue(":{$key}", $value);
@@ -183,11 +210,13 @@ try {
         $stmt->execute();
         $inventoryCounts = $stmt->fetchAll(PDO::FETCH_ASSOC);
         $debugInfo['counts_found'] = count($inventoryCounts);
-        $debugInfo['count_query'] = $countQuery;
+        $debugInfo['count_query'] = substr($countQuery, 0, 500); // Limitar tamanho
+        $debugInfo['count_params'] = $countParams;
         $allMovements = array_merge($allMovements, $inventoryCounts);
     } catch (Exception $e) {
         error_log("Inventory counts query error: " . $e->getMessage());
         $debugInfo['counts_error'] = $e->getMessage();
+        $debugInfo['count_query'] = substr($countQuery, 0, 500);
     }
     
     // Executar query de movimentos (se tabela existir)

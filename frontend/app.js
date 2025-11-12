@@ -3481,8 +3481,23 @@ async function loadStockHistory(page = 1) {
             
             // Se não há dados mas há debug info, mostrar no console
             if (data.debug && data.debug.total_counts_in_db > 0 && data.movements.length === 0) {
-                console.warn('⚠️ Há dados na BD mas não aparecem no histórico:', data.debug);
-                console.warn('Query usada:', data.debug.count_query);
+                console.warn('⚠️ Há dados na BD mas não aparecem no histórico:');
+                console.table({
+                    'Total na BD': data.debug.total_counts_in_db,
+                    'Encontrados': data.debug.counts_found || 0,
+                    'Com JOIN': data.debug.counts_with_join || 'N/A',
+                    'Órfãs': data.debug.orphaned_counts || 0,
+                    'Items na BD': data.debug.total_items_in_db || 'N/A'
+                });
+                if (data.debug.count_query) {
+                    console.warn('Query usada:', data.debug.count_query);
+                }
+                if (data.debug.count_params) {
+                    console.warn('Parâmetros:', data.debug.count_params);
+                }
+                if (data.debug.counts_error) {
+                    console.error('Erro na query:', data.debug.counts_error);
+                }
             }
         } catch (parseError) {
             console.error('Erro ao fazer parse do JSON:', parseError);
