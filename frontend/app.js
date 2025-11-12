@@ -107,18 +107,18 @@ function showDashboard(username) {
     const userRole = sessionStorage.getItem('userRole');
     const usersTabBtn = document.getElementById('usersTabBtn');
     const historyTabBtn = document.getElementById('historyTabBtn');
-    const analyticsTabBtn = document.getElementById('analyticsTabBtn');
+    // const analyticsTabBtn = document.getElementById('analyticsTabBtn'); // DISABLED
     const deleteAllItemsBtn = document.getElementById('deleteAllItemsBtn');
     
     if (userRole === 'admin') {
         if (usersTabBtn) usersTabBtn.classList.remove('hidden');
         if (historyTabBtn) historyTabBtn.classList.remove('hidden');
-        if (analyticsTabBtn) analyticsTabBtn.classList.remove('hidden');
+        // if (analyticsTabBtn) analyticsTabBtn.classList.remove('hidden'); // DISABLED
         if (deleteAllItemsBtn) deleteAllItemsBtn.classList.remove('hidden');
     } else {
         if (usersTabBtn) usersTabBtn.classList.add('hidden');
         if (historyTabBtn) historyTabBtn.classList.add('hidden');
-        if (analyticsTabBtn) analyticsTabBtn.classList.add('hidden');
+        // if (analyticsTabBtn) analyticsTabBtn.classList.add('hidden'); // DISABLED
         if (deleteAllItemsBtn) deleteAllItemsBtn.classList.add('hidden');
     }
     
@@ -7191,9 +7191,11 @@ if (originalSwitchTabAnalytics) {
     const enhancedSwitchTabAnalytics = window.switchTab;
     window.switchTab = function(tabName) {
         enhancedSwitchTabAnalytics(tabName);
-        if (tabName === 'analytics') {
-            setTimeout(initAdvancedAnalytics, 100);
-        } else if (tabName === 'scanner') {
+        // Analytics disabled
+        // if (tabName === 'analytics') {
+        //     setTimeout(initAdvancedAnalytics, 100);
+        // } else 
+        if (tabName === 'scanner') {
             setTimeout(initEnhancedScanner, 100);
         } else if (tabName === 'dashboard') {
             setTimeout(initInteractiveDashboard, 100);
@@ -7202,11 +7204,12 @@ if (originalSwitchTabAnalytics) {
 }
 
 // Initialize when DOM is ready
-document.addEventListener('DOMContentLoaded', () => {
-    setTimeout(() => {
-        if (document.getElementById('analyticsTab') && !document.getElementById('analyticsTab').classList.contains('hidden')) {
-            initAdvancedAnalytics();
-        }
-    }, 400);
-});
+// Analytics disabled
+// document.addEventListener('DOMContentLoaded', () => {
+//     setTimeout(() => {
+//         if (document.getElementById('analyticsTab') && !document.getElementById('analyticsTab').classList.contains('hidden')) {
+//             initAdvancedAnalytics();
+//         }
+//     }, 400);
+// });
 
