@@ -207,6 +207,40 @@
             flex: 1 !important;
         }
         
+        /* Login Screen Enhancements */
+        #loginSection {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh !important;
+        }
+        
+        #loginSection .bg-white {
+            backdrop-filter: blur(10px);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+        }
+        
+        #loginSection input:focus {
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+        
+        #loginSection button:hover {
+            box-shadow: 0 10px 25px -5px rgba(59, 130, 246, 0.4);
+        }
+        
+        /* Mobile Login Adjustments */
+        @media (max-width: 640px) {
+            #loginSection {
+                padding: 1rem !important;
+            }
+            
+            #loginSection .max-w-sm {
+                max-width: 100% !important;
+            }
+            
+            #loginSection .p-8 {
+                padding: 1.5rem !important;
+            }
+        }
+        
         /* Analytics Styles */
         .chart-period {
             padding: 0.25rem 0.75rem;
@@ -464,23 +498,62 @@
     </nav>
 
     <!-- Login Screen -->
-    <div id="loginSection" class="container mx-auto mt-8 p-4 max-w-md">
-        <div class="bg-white rounded-lg shadow-md p-6">
-            <h2 class="text-2xl font-bold mb-6 text-center">Login</h2>
-            <div id="loginError" class="mb-4 text-red-600 text-sm hidden"></div>
-            <form id="loginForm">
-                <div class="mb-4">
-                    <label class="block text-gray-700 text-sm font-bold mb-2">Username:</label>
-                    <input type="text" id="username" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:border-blue-500" required>
+    <div id="loginSection" class="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+        <div class="max-w-sm w-full space-y-8">
+            <div class="text-center">
+                <div class="mx-auto h-16 w-16 bg-blue-600 rounded-full flex items-center justify-center mb-4">
+                    <span class="text-white text-2xl font-bold">IX</span>
                 </div>
-                <div class="mb-6">
-                    <label class="block text-gray-700 text-sm font-bold mb-2">Password:</label>
-                    <input type="password" id="password" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:border-blue-500" required>
+                <h2 class="text-3xl font-extrabold text-gray-900 mb-2">InventoX</h2>
+                <p class="text-sm text-gray-600">Entre na sua conta</p>
+            </div>
+            
+            <div class="bg-white rounded-xl shadow-lg p-8">
+                <div id="loginError" class="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg hidden"></div>
+                
+                <form id="loginForm" class="space-y-6">
+                    <div>
+                        <label for="username" class="block text-sm font-medium text-gray-700 mb-2">
+                            Nome de Utilizador
+                        </label>
+                        <input 
+                            type="text" 
+                            id="username" 
+                            name="username"
+                            class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-gray-900 placeholder-gray-500" 
+                            placeholder="Digite o seu username"
+                            required
+                        >
+                    </div>
+                    
+                    <div>
+                        <label for="password" class="block text-sm font-medium text-gray-700 mb-2">
+                            Palavra-passe
+                        </label>
+                        <input 
+                            type="password" 
+                            id="password" 
+                            name="password"
+                            class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-gray-900 placeholder-gray-500" 
+                            placeholder="Digite a sua password"
+                            required
+                        >
+                    </div>
+                    
+                    <button 
+                        type="submit" 
+                        class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-4 rounded-lg transition-all duration-200 transform hover:scale-[1.02] focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 shadow-lg"
+                    >
+                        Entrar
+                    </button>
+                </form>
+                
+                <div class="mt-6 text-center">
+                    <p class="text-xs text-gray-500">
+                        Sistema de Gestão de Inventário
+                    </p>
                 </div>
-                <button type="submit" class="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg">
-                    Login
-                </button>
-            </form>
+            </div>
         </div>
     </div>
 
