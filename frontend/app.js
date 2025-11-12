@@ -5171,7 +5171,7 @@ function updateRecentScansWidget() {
 
 async function getActiveSessions() {
     try {
-        const response = await fetch(`${API_BASE}/sessions.php`, {
+        const response = await fetch(`${API_BASE}/session_count.php`, {
             method: 'GET',
             credentials: 'include'
         });
@@ -6377,7 +6377,7 @@ async function loadAnalyticsData() {
 
 async function fetchAnalyticsFromAPI() {
     try {
-        const response = await fetch(`${API_BASE}/analytics.php?timeRange=${analyticsState.timeRange}&period=${analyticsState.currentPeriod}`, {
+        const response = await fetch(`${API_BASE}/analytics_simple.php?timeRange=${analyticsState.timeRange}&period=${analyticsState.currentPeriod}`, {
             method: 'GET',
             credentials: 'include',
             headers: {
