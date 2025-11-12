@@ -5340,3 +5340,743 @@ document.addEventListener('DOMContentLoaded', () => {
     }, 300);
 });
 
+// ===================================
+// 🔍 GLOBAL SEARCH SYSTEM - FASE 4
+// ===================================
+
+// Global Search State
+let globalSearchState = {
+    isOpen: false,
+    currentFilter: 'all',
+    searchHistory: JSON.parse(localStorage.getItem('inventox_search_history') || '[]'),
+    selectedIndex: -1,
+    currentResults: [],
+    searchTimeout: null,
+    voiceRecognition: null,
+    isVoiceActive: false
+};
+
+// Initialize Global Search
+function initGlobalSearch() {
+    initSearchModal();
+    initSearchFilters();
+    initSearchHistory();
+    initVoiceSearch();
+    initKeyboardShortcuts();
+    
+    log.debug('Global Search initialized');
+}
+
+// ===================================
+// 🎛️ SEARCH MODAL CONTROLS
+// ===================================
+
+function initSearchModal() {
+    const searchModal = document.getElementById('globalSearchModal');
+    const searchInput = document.getElementById('globalSearchInput');
+    const closeBtn = document.getElementById('closeSearchBtn');
+    
+    if (closeBtn) {
+        closeBtn.addEventListener('click', closeGlobalSearch);
+    }
+    
+    if (searchInput) {
+        searchInput.addEventListener('input', handleSearchInput);
+        searchInput.addEventListener('keydown', handleSearchKeydown);
+    }
+    
+    // Click outside to close
+    if (searchModal) {
+        searchModal.addEventListener('click', (e) => {
+            if (e.target === searchModal) {
+                closeGlobalSearch();
+            }
+        });
+    }
+    
+    // Initialize suggestions
+    initSearchSuggestions();
+}
+
+function openGlobalSearch() {
+    const searchModal = document.getElementById('globalSearchModal');
+    const searchInput = document.getElementById('globalSearchInput');
+    
+    if (searchModal && searchInput) {
+        globalSearchState.isOpen = true;
+        searchModal.classList.remove('hidden');
+        
+        // Focus input after animation
+        setTimeout(() => {
+            searchInput.focus();
+        }, 100);
+        
+        // Show suggestions and history
+        showSearchSuggestions();
+        renderSearchHistory();
+        
+        log.debug('Global search opened');
+    }
+}
+
+function closeGlobalSearch() {
+    const searchModal = document.getElementById('globalSearchModal');
+    const searchInput = document.getElementById('globalSearchInput');
+    
+    if (searchModal && searchInput) {
+        globalSearchState.isOpen = false;
+        searchModal.classList.add('hidden');
+        searchInput.value = '';
+        
+        // Reset state
+        globalSearchState.selectedIndex = -1;
+        globalSearchState.currentResults = [];
+        
+        // Stop voice search if active
+        if (globalSearchState.isVoiceActive) {
+            stopVoiceSearch();
+        }
+        
+        // Clear search timeout
+        if (globalSearchState.searchTimeout) {
+            clearTimeout(globalSearchState.searchTimeout);
+        }
+        
+        log.debug('Global search closed');
+    }
+}
+
+// ===================================
+// 🏷️ SEARCH FILTERS
+// ===================================
+
+function initSearchFilters() {
+    const filterButtons = document.querySelectorAll('.search-filter');
+    
+    filterButtons.forEach(button => {
+        button.addEventListener('click', () => {
+            const filter = button.getAttribute('data-filter');
+            setSearchFilter(filter);
+        });
+    });
+}
+
+function setSearchFilter(filter) {
+    globalSearchState.currentFilter = filter;
+    
+    // Update UI
+    const filterButtons = document.querySelectorAll('.search-filter');
+    filterButtons.forEach(button => {
+        if (button.getAttribute('data-filter') === filter) {
+            button.classList.add('active');
+        } else {
+            button.classList.remove('active');
+        }
+    });
+    
+    // Re-run search if there's a query
+    const searchInput = document.getElementById('globalSearchInput');
+    if (searchInput && searchInput.value.trim()) {
+        performSearch(searchInput.value.trim());
+    }
+    
+    showSuccessToast('Filtro Ativo', `Pesquisando em: ${getFilterName(filter)}`);
+}
+
+function getFilterName(filter) {
+    const names = {
+        'all': 'Tudo',
+        'items': 'Artigos',
+        'sessions': 'Sessões',
+        'users': 'Utilizadores',
+        'categories': 'Categorias'
+    };
+    return names[filter] || 'Tudo';
+}
+
+// ===================================
+// 🔍 SEARCH FUNCTIONALITY
+// ===================================
+
+function handleSearchInput(event) {
+    const query = event.target.value.trim();
+    
+    // Clear previous timeout
+    if (globalSearchState.searchTimeout) {
+        clearTimeout(globalSearchState.searchTimeout);
+    }
+    
+    if (query.length === 0) {
+        showSearchSuggestions();
+        return;
+    }
+    
+    if (query.length < 2) {
+        return; // Wait for at least 2 characters
+    }
+    
+    // Debounce search
+    globalSearchState.searchTimeout = setTimeout(() => {
+        performSearch(query);
+    }, 300);
+}
+
+function handleSearchKeydown(event) {
+    const results = globalSearchState.currentResults;
+    
+    switch (event.key) {
+        case 'Escape':
+            event.preventDefault();
+            closeGlobalSearch();
+            break;
+            
+        case 'ArrowDown':
+            event.preventDefault();
+            if (results.length > 0) {
+                globalSearchState.selectedIndex = Math.min(
+                    globalSearchState.selectedIndex + 1,
+                    results.length - 1
+                );
+                updateSelectedResult();
+            }
+            break;
+            
+        case 'ArrowUp':
+            event.preventDefault();
+            if (results.length > 0) {
+                globalSearchState.selectedIndex = Math.max(
+                    globalSearchState.selectedIndex - 1,
+                    -1
+                );
+                updateSelectedResult();
+            }
+            break;
+            
+        case 'Enter':
+            event.preventDefault();
+            if (globalSearchState.selectedIndex >= 0 && results[globalSearchState.selectedIndex]) {
+                selectSearchResult(results[globalSearchState.selectedIndex]);
+            } else if (event.target.value.trim()) {
+                // Perform search with current query
+                addToSearchHistory(event.target.value.trim());
+                performSearch(event.target.value.trim());
+            }
+            break;
+    }
+}
+
+async function performSearch(query) {
+    const startTime = Date.now();
+    
+    try {
+        showEnhancedLoading('Pesquisando...', `Procurando por "${query}"`);
+        
+        // Simulate search across different data sources
+        const results = await searchAllSources(query, globalSearchState.currentFilter);
+        
+        const searchTime = Date.now() - startTime;
+        
+        hideEnhancedLoading();
+        
+        globalSearchState.currentResults = results;
+        globalSearchState.selectedIndex = -1;
+        
+        displaySearchResults(results, query, searchTime);
+        
+        // Add to search history
+        addToSearchHistory(query);
+        
+    } catch (error) {
+        hideEnhancedLoading();
+        showErrorToast('Erro na Pesquisa', 'Não foi possível realizar a pesquisa');
+        log.debug('Search error:', error);
+    }
+}
+
+async function searchAllSources(query, filter) {
+    const results = [];
+    const lowerQuery = query.toLowerCase();
+    
+    // Search in different sources based on filter
+    if (filter === 'all' || filter === 'items') {
+        // Mock items search
+        const itemResults = [
+            { type: 'item', id: 1, title: 'Produto Exemplo A', description: 'Código: ABC123', stock: 15, category: 'Eletrónicos' },
+            { type: 'item', id: 2, title: 'Produto Exemplo B', description: 'Código: DEF456', stock: 3, category: 'Vestuário' },
+            { type: 'item', id: 3, title: 'Produto Exemplo C', description: 'Código: GHI789', stock: 0, category: 'Casa' }
+        ].filter(item => 
+            item.title.toLowerCase().includes(lowerQuery) ||
+            item.description.toLowerCase().includes(lowerQuery) ||
+            item.category.toLowerCase().includes(lowerQuery)
+        );
+        
+        results.push(...itemResults);
+    }
+    
+    if (filter === 'all' || filter === 'sessions') {
+        // Mock sessions search
+        const sessionResults = [
+            { type: 'session', id: 1, title: 'Sessão Inventário Loja A', description: 'Criada em 10/11/2024', status: 'open', items: 25 },
+            { type: 'session', id: 2, title: 'Sessão Inventário Armazém', description: 'Criada em 09/11/2024', status: 'closed', items: 150 }
+        ].filter(session => 
+            session.title.toLowerCase().includes(lowerQuery) ||
+            session.description.toLowerCase().includes(lowerQuery)
+        );
+        
+        results.push(...sessionResults);
+    }
+    
+    if (filter === 'all' || filter === 'users') {
+        // Mock users search
+        const userResults = [
+            { type: 'user', id: 1, title: 'João Silva', description: 'Operador - Ativo', role: 'operador', email: 'joao@example.com' },
+            { type: 'user', id: 2, title: 'Maria Santos', description: 'Administrador - Ativo', role: 'admin', email: 'maria@example.com' }
+        ].filter(user => 
+            user.title.toLowerCase().includes(lowerQuery) ||
+            user.role.toLowerCase().includes(lowerQuery) ||
+            user.email.toLowerCase().includes(lowerQuery)
+        );
+        
+        results.push(...userResults);
+    }
+    
+    if (filter === 'all' || filter === 'categories') {
+        // Mock categories search
+        const categoryResults = [
+            { type: 'category', id: 1, title: 'Eletrónicos', description: '45 artigos', count: 45 },
+            { type: 'category', id: 2, title: 'Vestuário', description: '32 artigos', count: 32 },
+            { type: 'category', id: 3, title: 'Casa & Jardim', description: '28 artigos', count: 28 }
+        ].filter(category => 
+            category.title.toLowerCase().includes(lowerQuery)
+        );
+        
+        results.push(...categoryResults);
+    }
+    
+    // Add scan history results
+    const scanHistory = JSON.parse(localStorage.getItem('inventox_scan_history') || '[]');
+    const scanResults = scanHistory
+        .filter(scan => 
+            scan.itemName.toLowerCase().includes(lowerQuery) ||
+            scan.barcode.includes(query)
+        )
+        .slice(0, 5)
+        .map(scan => ({
+            type: 'scan',
+            id: scan.id,
+            title: scan.itemName,
+            description: `Código: ${scan.barcode} - ${new Date(scan.timestamp).toLocaleString('pt-PT')}`,
+            success: scan.success,
+            timestamp: scan.timestamp
+        }));
+    
+    results.push(...scanResults);
+    
+    // Sort by relevance (exact matches first, then partial matches)
+    results.sort((a, b) => {
+        const aExact = a.title.toLowerCase() === lowerQuery;
+        const bExact = b.title.toLowerCase() === lowerQuery;
+        
+        if (aExact && !bExact) return -1;
+        if (!aExact && bExact) return 1;
+        
+        return a.title.localeCompare(b.title);
+    });
+    
+    return results.slice(0, 20); // Limit to 20 results
+}
+
+function displaySearchResults(results, query, searchTime) {
+    const searchResults = document.getElementById('searchResults');
+    const searchSuggestions = document.getElementById('searchSuggestions');
+    const searchResultsCount = document.getElementById('searchResultsCount');
+    const searchResultsTime = document.getElementById('searchResultsTime');
+    const searchResultsList = document.getElementById('searchResultsList');
+    
+    if (!searchResults || !searchResultsList) return;
+    
+    // Hide suggestions, show results
+    if (searchSuggestions) searchSuggestions.classList.add('hidden');
+    searchResults.classList.remove('hidden');
+    
+    // Update count and time
+    if (searchResultsCount) {
+        searchResultsCount.textContent = `${results.length} resultado${results.length !== 1 ? 's' : ''}`;
+    }
+    if (searchResultsTime) {
+        searchResultsTime.textContent = `(${searchTime}ms)`;
+    }
+    
+    // Render results
+    if (results.length === 0) {
+        searchResultsList.innerHTML = `
+            <div class="text-center py-8 text-gray-500">
+                <div class="text-4xl mb-2">🔍</div>
+                <p class="text-sm">Nenhum resultado encontrado para "${query}"</p>
+                <p class="text-xs text-gray-400 mt-1">Tente usar termos diferentes ou verifique a ortografia</p>
+            </div>
+        `;
+        return;
+    }
+    
+    const resultsHTML = results.map((result, index) => {
+        const typeIcons = {
+            item: '📦',
+            session: '📋',
+            user: '👤',
+            category: '🏷️',
+            scan: '🔍'
+        };
+        
+        const typeColors = {
+            item: 'text-blue-600',
+            session: 'text-green-600',
+            user: 'text-purple-600',
+            category: 'text-orange-600',
+            scan: 'text-gray-600'
+        };
+        
+        return `
+            <div class="search-result-item ${index === globalSearchState.selectedIndex ? 'selected' : ''}" 
+                 data-index="${index}" onclick="selectSearchResultByIndex(${index})">
+                <div class="flex items-start space-x-3">
+                    <span class="text-2xl">${typeIcons[result.type]}</span>
+                    <div class="flex-1 min-w-0">
+                        <div class="flex items-center space-x-2">
+                            <h3 class="font-medium text-gray-900 truncate">${highlightQuery(result.title, query)}</h3>
+                            <span class="text-xs px-2 py-1 rounded-full bg-gray-100 ${typeColors[result.type]}">${result.type}</span>
+                        </div>
+                        <p class="text-sm text-gray-600 mt-1">${highlightQuery(result.description, query)}</p>
+                        ${result.stock !== undefined ? `<p class="text-xs text-gray-500 mt-1">Stock: ${result.stock}</p>` : ''}
+                        ${result.success !== undefined ? `<span class="text-xs ${result.success ? 'text-green-600' : 'text-red-600'}">${result.success ? '✅ Sucesso' : '❌ Erro'}</span>` : ''}
+                    </div>
+                </div>
+            </div>
+        `;
+    }).join('');
+    
+    searchResultsList.innerHTML = resultsHTML;
+}
+
+function highlightQuery(text, query) {
+    if (!query) return text;
+    
+    const regex = new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+    return text.replace(regex, '<mark class="bg-yellow-200 px-1 rounded">$1</mark>');
+}
+
+function updateSelectedResult() {
+    const resultItems = document.querySelectorAll('.search-result-item');
+    
+    resultItems.forEach((item, index) => {
+        if (index === globalSearchState.selectedIndex) {
+            item.classList.add('selected');
+            item.scrollIntoView({ block: 'nearest' });
+        } else {
+            item.classList.remove('selected');
+        }
+    });
+}
+
+function selectSearchResultByIndex(index) {
+    if (globalSearchState.currentResults[index]) {
+        selectSearchResult(globalSearchState.currentResults[index]);
+    }
+}
+
+function selectSearchResult(result) {
+    // Handle different result types
+    switch (result.type) {
+        case 'item':
+            switchTab('items');
+            showSuccessToast('Navegação', `Indo para artigo: ${result.title}`);
+            break;
+        case 'session':
+            switchTab('sessions');
+            showSuccessToast('Navegação', `Indo para sessão: ${result.title}`);
+            break;
+        case 'user':
+            switchTab('users');
+            showSuccessToast('Navegação', `Indo para utilizador: ${result.title}`);
+            break;
+        case 'category':
+            switchTab('categories');
+            showSuccessToast('Navegação', `Indo para categoria: ${result.title}`);
+            break;
+        case 'scan':
+            switchTab('scanner');
+            showSuccessToast('Navegação', `Indo para scanner - ${result.title}`);
+            break;
+        default:
+            showSuccessToast('Resultado', `Selecionado: ${result.title}`);
+    }
+    
+    closeGlobalSearch();
+}
+
+// ===================================
+// 💭 SEARCH SUGGESTIONS
+// ===================================
+
+function initSearchSuggestions() {
+    const suggestions = document.querySelectorAll('.search-suggestion');
+    
+    suggestions.forEach(suggestion => {
+        suggestion.addEventListener('click', () => {
+            const query = suggestion.getAttribute('data-suggestion');
+            const searchInput = document.getElementById('globalSearchInput');
+            
+            if (searchInput && query) {
+                searchInput.value = query;
+                performSearch(query);
+            }
+        });
+    });
+}
+
+function showSearchSuggestions() {
+    const searchSuggestions = document.getElementById('searchSuggestions');
+    const searchResults = document.getElementById('searchResults');
+    
+    if (searchSuggestions && searchResults) {
+        searchSuggestions.classList.remove('hidden');
+        searchResults.classList.add('hidden');
+    }
+}
+
+// ===================================
+// 📚 SEARCH HISTORY
+// ===================================
+
+function initSearchHistory() {
+    const clearHistoryBtn = document.getElementById('clearSearchHistory');
+    
+    if (clearHistoryBtn) {
+        clearHistoryBtn.addEventListener('click', clearSearchHistory);
+    }
+    
+    renderSearchHistory();
+}
+
+function addToSearchHistory(query) {
+    if (!query || query.length < 2) return;
+    
+    // Remove if already exists
+    globalSearchState.searchHistory = globalSearchState.searchHistory.filter(
+        item => item.query !== query
+    );
+    
+    // Add to beginning
+    globalSearchState.searchHistory.unshift({
+        query: query,
+        timestamp: Date.now(),
+        filter: globalSearchState.currentFilter
+    });
+    
+    // Keep only last 10
+    if (globalSearchState.searchHistory.length > 10) {
+        globalSearchState.searchHistory = globalSearchState.searchHistory.slice(0, 10);
+    }
+    
+    // Save to localStorage
+    localStorage.setItem('inventox_search_history', JSON.stringify(globalSearchState.searchHistory));
+    
+    renderSearchHistory();
+}
+
+function renderSearchHistory() {
+    const searchHistoryList = document.getElementById('searchHistoryList');
+    
+    if (!searchHistoryList) return;
+    
+    if (globalSearchState.searchHistory.length === 0) {
+        searchHistoryList.innerHTML = `
+            <div class="text-center text-gray-400 py-4 text-sm">
+                Nenhuma pesquisa recente
+            </div>
+        `;
+        return;
+    }
+    
+    const historyHTML = globalSearchState.searchHistory.map(item => {
+        const time = new Date(item.timestamp).toLocaleString('pt-PT', {
+            day: '2-digit',
+            month: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+        
+        return `
+            <div class="search-history-item flex items-center justify-between p-2 hover:bg-gray-50 rounded cursor-pointer" 
+                 onclick="searchFromHistory('${item.query}', '${item.filter}')">
+                <div class="flex items-center space-x-3">
+                    <span class="text-gray-400">🕒</span>
+                    <span class="text-sm">${item.query}</span>
+                    <span class="text-xs text-gray-400">${getFilterName(item.filter)}</span>
+                </div>
+                <span class="text-xs text-gray-400">${time}</span>
+            </div>
+        `;
+    }).join('');
+    
+    searchHistoryList.innerHTML = historyHTML;
+}
+
+function searchFromHistory(query, filter) {
+    const searchInput = document.getElementById('globalSearchInput');
+    
+    if (searchInput) {
+        searchInput.value = query;
+        setSearchFilter(filter);
+        performSearch(query);
+    }
+}
+
+function clearSearchHistory() {
+    if (confirm('Tem certeza que deseja limpar o histórico de pesquisas?')) {
+        globalSearchState.searchHistory = [];
+        localStorage.setItem('inventox_search_history', '[]');
+        renderSearchHistory();
+        showSuccessToast('Histórico Limpo', 'Histórico de pesquisas removido');
+    }
+}
+
+// ===================================
+// 🎤 VOICE SEARCH
+// ===================================
+
+function initVoiceSearch() {
+    const voiceBtn = document.getElementById('voiceSearchBtn');
+    const stopVoiceBtn = document.getElementById('stopVoiceSearch');
+    
+    if (voiceBtn) {
+        voiceBtn.addEventListener('click', toggleVoiceSearch);
+    }
+    
+    if (stopVoiceBtn) {
+        stopVoiceBtn.addEventListener('click', stopVoiceSearch);
+    }
+    
+    // Check if speech recognition is available
+    if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        globalSearchState.voiceRecognition = new SpeechRecognition();
+        
+        globalSearchState.voiceRecognition.continuous = false;
+        globalSearchState.voiceRecognition.interimResults = false;
+        globalSearchState.voiceRecognition.lang = 'pt-PT';
+        
+        globalSearchState.voiceRecognition.onresult = handleVoiceResult;
+        globalSearchState.voiceRecognition.onerror = handleVoiceError;
+        globalSearchState.voiceRecognition.onend = handleVoiceEnd;
+    }
+}
+
+function toggleVoiceSearch() {
+    if (globalSearchState.isVoiceActive) {
+        stopVoiceSearch();
+    } else {
+        startVoiceSearch();
+    }
+}
+
+function startVoiceSearch() {
+    if (!globalSearchState.voiceRecognition) {
+        showErrorToast('Voz Indisponível', 'Reconhecimento de voz não suportado neste navegador');
+        return;
+    }
+    
+    try {
+        globalSearchState.voiceRecognition.start();
+        globalSearchState.isVoiceActive = true;
+        
+        // Update UI
+        const voiceBtn = document.getElementById('voiceSearchBtn');
+        const voiceStatus = document.getElementById('voiceSearchStatus');
+        
+        if (voiceBtn) {
+            voiceBtn.classList.add('voice-active', 'text-red-600');
+        }
+        
+        if (voiceStatus) {
+            voiceStatus.classList.remove('hidden');
+        }
+        
+        showSuccessToast('Voz Ativa', 'Fale agora para pesquisar');
+        
+    } catch (error) {
+        showErrorToast('Erro de Voz', 'Não foi possível iniciar o reconhecimento de voz');
+        log.debug('Voice search error:', error);
+    }
+}
+
+function stopVoiceSearch() {
+    if (globalSearchState.voiceRecognition && globalSearchState.isVoiceActive) {
+        globalSearchState.voiceRecognition.stop();
+    }
+    
+    globalSearchState.isVoiceActive = false;
+    
+    // Update UI
+    const voiceBtn = document.getElementById('voiceSearchBtn');
+    const voiceStatus = document.getElementById('voiceSearchStatus');
+    
+    if (voiceBtn) {
+        voiceBtn.classList.remove('voice-active', 'text-red-600');
+    }
+    
+    if (voiceStatus) {
+        voiceStatus.classList.add('hidden');
+    }
+}
+
+function handleVoiceResult(event) {
+    const transcript = event.results[0][0].transcript;
+    const searchInput = document.getElementById('globalSearchInput');
+    
+    if (searchInput && transcript) {
+        searchInput.value = transcript;
+        performSearch(transcript);
+        showSuccessToast('Voz Reconhecida', `Pesquisando por: "${transcript}"`);
+    }
+    
+    stopVoiceSearch();
+}
+
+function handleVoiceError(event) {
+    showErrorToast('Erro de Voz', 'Não foi possível reconhecer a fala');
+    log.debug('Voice recognition error:', event.error);
+    stopVoiceSearch();
+}
+
+function handleVoiceEnd() {
+    stopVoiceSearch();
+}
+
+// ===================================
+// ⌨️ KEYBOARD SHORTCUTS INTEGRATION
+// ===================================
+
+function initKeyboardShortcuts() {
+    // Override the existing Ctrl+K handler
+    document.addEventListener('keydown', (event) => {
+        if ((event.ctrlKey || event.metaKey) && event.key === 'k') {
+            event.preventDefault();
+            openGlobalSearch();
+        }
+    });
+}
+
+// Make functions available globally
+window.selectSearchResultByIndex = selectSearchResultByIndex;
+window.searchFromHistory = searchFromHistory;
+
+// ===================================
+// 🎯 INITIALIZE GLOBAL SEARCH
+// ===================================
+
+// Initialize when DOM is ready
+document.addEventListener('DOMContentLoaded', () => {
+    setTimeout(initGlobalSearch, 100);
+});
+
