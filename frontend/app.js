@@ -2388,6 +2388,21 @@ async function uploadFile() {
                     </div>`
                     : '';
                 
+                // Adicionar botão de diagnóstico se houver discrepâncias
+                if (totalLines > (imported + updated) || skipped > 0 || errorsCount > 0) {
+                    summaryHtml += `
+                        <div class="mt-3 pt-3 border-t border-gray-300">
+                            <button onclick="runImportDiagnosis()" 
+                                    class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded text-sm">
+                                🔍 Executar Diagnóstico
+                            </button>
+                            <p class="text-xs text-gray-600 mt-2">
+                                O diagnóstico verifica quantos artigos realmente existem na base de dados e identifica possíveis problemas.
+                            </p>
+                        </div>
+                    `;
+                }
+                
                 resultDiv.innerHTML = summaryHtml + errorsHtml;
             }
             
@@ -2413,6 +2428,113 @@ async function uploadFile() {
         }
         console.error('Import error:', error);
         if (uploadBtn) uploadBtn.disabled = false;
+    }
+}
+
+// Função para executar diagnóstico de importação
+async function runImportDiagnosis() {
+    const resultDiv = document.getElementById('importResults');
+    if (resultDiv) {
+        resultDiv.className = 'p-4 bg-blue-50 rounded-lg text-blue-800';
+        resultDiv.innerHTML = '<p class="font-bold">🔍 A executar diagnóstico...</p>';
+        resultDiv.classList.remove('hidden');
+    }
+    
+    showLoading();
+    
+    try {
+        const response = await fetch(`${API_BASE}/diagnose_import.php`, {
+            credentials: 'include'
+        });
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        hideLoading();
+        
+        if (data.success && data.diagnosis) {
+            const diag = data.diagnosis;
+            let diagnosisHtml = `
+                <p class="font-bold text-lg mb-3">📊 Diagnóstico da Base de Dados</p>
+                <div class="grid grid-cols-2 gap-3 text-sm mb-3">
+                    <div class="bg-white p-2 rounded">
+                        <strong>Total de artigos na BD:</strong> 
+                        <span class="text-lg font-bold text-blue-700">${diag.total_items_in_database}</span>
+                    </div>
+                    <div class="bg-white p-2 rounded">
+                        <strong>Barcodes duplicados:</strong> 
+                        <span class="text-lg font-bold ${diag.duplicate_barcodes > 0 ? 'text-red-700' : 'text-green-700'}">${diag.duplicate_barcodes}</span>
+                    </div>
+                    <div class="bg-white p-2 rounded">
+                        <strong>Sem barcode:</strong> ${diag.items_without_barcode}
+                    </div>
+                    <div class="bg-white p-2 rounded">
+                        <strong>Sem nome:</strong> ${diag.items_without_name}
+                    </div>
+                </div>
+            `;
+            
+            // Pesquisa de exemplo
+            if (diag.search_example_tubo_pvc) {
+                const search = diag.search_example_tubo_pvc;
+                diagnosisHtml += `
+                    <div class="bg-white p-3 rounded mb-3">
+                        <strong>🔍 Pesquisa "tubo pvc":</strong> 
+                        <span class="${search.found > 0 ? 'text-green-700' : 'text-red-700'}">
+                            ${search.found} resultado(s) encontrado(s)
+                        </span>
+                        ${search.results && search.results.length > 0 ? `
+                            <ul class="list-disc ml-5 mt-2 text-xs">
+                                ${search.results.slice(0, 5).map(r => `<li>${r.name} (${r.barcode})</li>`).join('')}
+                            </ul>
+                        ` : ''}
+                    </div>
+                `;
+            }
+            
+            // Recomendações
+            if (data.recommendations && data.recommendations.length > 0) {
+                diagnosisHtml += `
+                    <div class="bg-yellow-50 border border-yellow-300 rounded p-3 mt-3">
+                        <strong>💡 Recomendações:</strong>
+                        <ul class="list-disc ml-5 mt-2 text-sm">
+                            ${data.recommendations.map(r => `<li>${r}</li>`).join('')}
+                        </ul>
+                    </div>
+                `;
+            }
+            
+            // Duplicados detalhados
+            if (diag.duplicate_barcodes > 0 && diag.duplicate_details) {
+                diagnosisHtml += `
+                    <div class="bg-red-50 border border-red-300 rounded p-3 mt-3">
+                        <strong>⚠️ Barcodes Duplicados:</strong>
+                        <ul class="list-disc ml-5 mt-2 text-xs max-h-40 overflow-y-auto">
+                            ${diag.duplicate_details.slice(0, 10).map(d => `<li>Barcode ${d.barcode}: ${d.count} ocorrências</li>`).join('')}
+                        </ul>
+                    </div>
+                `;
+            }
+            
+            if (resultDiv) {
+                resultDiv.className = 'p-4 bg-blue-50 rounded-lg text-blue-800';
+                resultDiv.innerHTML = diagnosisHtml;
+            }
+        } else {
+            if (resultDiv) {
+                resultDiv.className = 'p-4 bg-red-50 rounded-lg text-red-800';
+                resultDiv.innerHTML = `<p>Erro ao executar diagnóstico: ${data.message || 'Erro desconhecido'}</p>`;
+            }
+        }
+    } catch (error) {
+        hideLoading();
+        if (resultDiv) {
+            resultDiv.className = 'p-4 bg-red-50 rounded-lg text-red-800';
+            resultDiv.innerHTML = `<p>Erro ao executar diagnóstico: ${error.message}</p>`;
+        }
+        console.error('Diagnosis error:', error);
     }
 }
 
@@ -4048,6 +4170,7 @@ window.loadItems = loadItems;
 window.editItem = editItem;
 window.deleteItem = deleteItem;
 window.openItemModal = openItemModal;
+window.runImportDiagnosis = runImportDiagnosis;
 window.closeItemModal = closeItemModal;
 window.closeItemInfo = closeItemInfo;
 window.editCategory = editCategory;
