@@ -185,12 +185,15 @@ try {
             sendJsonResponse(['success' => false, 'message' => 'Colunas obrigatórias em falta no CSV: ' . implode(', ', $missingCols)], 400);
         }
 
-        // Aumentar timeout para importações grandes
-        set_time_limit(300); // 5 minutos
-        ini_set('max_execution_time', 300);
+        // Aumentar timeout e memória para importações grandes
+        set_time_limit(900); // 15 minutos para importações muito grandes
+        ini_set('max_execution_time', 900);
+        ini_set('memory_limit', '512M'); // Aumentar memória para grandes importações
         
         $db = getDB();
         $imported = 0; $updated = 0; $errors = [];
+        $skipped = 0; // Linhas ignoradas (vazias, inválidas, etc.)
+        $totalProcessed = 0; // Total de linhas processadas
         
         // Cache de categorias para evitar queries repetidas
         $categoryCache = [];
@@ -220,22 +223,39 @@ try {
         $lineNum = 1; // Começa em 1 para o header, dados começam na linha 2
         while (($rowData = fgetcsv($fileHandle, 0, $delimiter)) !== FALSE) {
             $lineNum++;
+            $totalProcessed++;
+            
+            // Verificar se linha está vazia
+            $isEmpty = true;
+            foreach ($rowData as $cell) {
+                if (trim($cell) !== '') {
+                    $isEmpty = false;
+                    break;
+                }
+            }
+            if ($isEmpty) {
+                $skipped++;
+                continue; // Ignorar linhas completamente vazias
+            }
+            
             if (count($rowData) != count($headers)) {
-                $errors[] = "Linha {$lineNum}: Número de colunas inconsistente.";
+                $errors[] = "Linha {$lineNum}: Número de colunas inconsistente (esperado: " . count($headers) . ", encontrado: " . count($rowData) . ").";
+                $skipped++;
                 continue;
             }
 
             $itemData = [];
             foreach ($mappedHeaders as $dbCol => $colIndex) {
-                $itemData[$dbCol] = trim($rowData[$colIndex]);
+                $itemData[$dbCol] = isset($rowData[$colIndex]) ? trim($rowData[$colIndex]) : '';
             }
 
             try {
-                $barcode = $itemData['barcode'];
-                $name = $itemData['name'];
+                $barcode = $itemData['barcode'] ?? '';
+                $name = $itemData['name'] ?? '';
 
                 if (empty($barcode) || empty($name)) {
-                    $errors[] = "Linha {$lineNum}: Código de barras e nome são obrigatórios.";
+                    $errors[] = "Linha {$lineNum}: Código de barras e nome são obrigatórios (barcode: '{$barcode}', name: '{$name}').";
+                    $skipped++;
                     continue;
                 }
 
@@ -304,6 +324,8 @@ try {
                 }
             } catch (Exception $er) {
                 $errors[] = "Linha {$lineNum}: " . $er->getMessage();
+                $skipped++;
+                error_log("Items import - Line {$lineNum} error: " . $er->getMessage());
                 // Continuar mesmo com erro, mas não incrementar batch
                 continue;
             }
@@ -327,14 +349,36 @@ try {
         fclose($fileHandle);
         @unlink($uploadPath);
 
+        // Log resumo da importação
+        error_log("Items import completed - Total lines: {$totalLines}, Processed: {$totalProcessed}, Imported: {$imported}, Updated: {$updated}, Skipped: {$skipped}, Errors: " . count($errors));
+        
+        $message = "Importação CSV concluída: {$imported} importados, {$updated} atualizados";
+        if ($skipped > 0) {
+            $message .= ", {$skipped} linhas ignoradas";
+        }
+        if (count($errors) > 0) {
+            $message .= ", " . count($errors) . " erros";
+        }
+        $message .= ".";
+        
         sendJsonResponse([
             'success' => true,
-            'message' => "Importação CSV concluída: {$imported} importados, {$updated} atualizados.",
+            'message' => $message,
             'imported' => $imported,
             'updated' => $updated,
+            'skipped' => $skipped,
             'errors' => $errors,
             'total_lines' => $totalLines,
-            'processed' => $lineNum - 1
+            'processed' => $totalProcessed,
+            'summary' => [
+                'total_lines_in_file' => $totalLines,
+                'lines_processed' => $totalProcessed,
+                'lines_imported' => $imported,
+                'lines_updated' => $updated,
+                'lines_skipped' => $skipped,
+                'errors_count' => count($errors),
+                'success_rate' => $totalProcessed > 0 ? round((($imported + $updated) / $totalProcessed) * 100, 2) . '%' : '0%'
+            ]
         ]);
     }
 

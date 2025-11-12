@@ -2310,8 +2310,8 @@ async function uploadFile() {
             method: 'POST',
             body: formData,
             credentials: 'include',
-            // Timeout aumentado para importações grandes
-            signal: AbortSignal.timeout(300000) // 5 minutos
+            // Timeout aumentado para importações muito grandes (15 minutos)
+            signal: AbortSignal.timeout(900000) // 15 minutos
         });
         
         const responseText = await response.text();
@@ -2345,18 +2345,56 @@ async function uploadFile() {
         if (data.success) {
             if (resultDiv) {
                 resultDiv.className = 'p-4 bg-green-50 rounded-lg text-green-800';
-                const errorsHtml = (data.errors && data.errors.length)
-                    ? `<div class="mt-2 text-red-700"><p class="font-semibold mb-1">Ocorreram alguns avisos/erros:</p><ul class="list-disc ml-5 text-sm">${data.errors.slice(0,10).map(e => `<li>${e}</li>`).join('')}</ul>${data.errors.length>10?`<p class=\"text-xs mt-1\">(+${data.errors.length-10} mais)</p>`:''}</div>`
-                    : '';
-                resultDiv.innerHTML = `
-                    <p class="font-bold">Importação concluída com sucesso!</p>
-                    <p class="text-sm mt-2">
-                        Importados: ${data.imported || 0} | 
-                        Atualizados: ${data.updated || 0}
-                    </p>
-                    ${errorsHtml}
+                
+                // Resumo detalhado
+                const summary = data.summary || {};
+                const totalLines = data.total_lines || summary.total_lines_in_file || 0;
+                const processed = data.processed || summary.lines_processed || 0;
+                const imported = data.imported || 0;
+                const updated = data.updated || 0;
+                const skipped = data.skipped || summary.lines_skipped || 0;
+                const errorsCount = (data.errors && data.errors.length) || summary.errors_count || 0;
+                const successRate = summary.success_rate || 'N/A';
+                
+                let summaryHtml = `
+                    <p class="font-bold text-lg mb-3">✅ Importação concluída!</p>
+                    <div class="grid grid-cols-2 gap-2 text-sm mb-3">
+                        <div><strong>Total de linhas no ficheiro:</strong> ${totalLines}</div>
+                        <div><strong>Linhas processadas:</strong> ${processed}</div>
+                        <div class="text-green-700"><strong>✅ Importados:</strong> ${imported}</div>
+                        <div class="text-blue-700"><strong>🔄 Atualizados:</strong> ${updated}</div>
+                        ${skipped > 0 ? `<div class="text-yellow-700"><strong>⏭️ Ignoradas:</strong> ${skipped}</div>` : ''}
+                        ${errorsCount > 0 ? `<div class="text-red-700"><strong>❌ Erros:</strong> ${errorsCount}</div>` : ''}
+                    </div>
+                    ${successRate !== 'N/A' ? `<p class="text-xs text-gray-600 mb-2">Taxa de sucesso: ${successRate}</p>` : ''}
                 `;
+                
+                // Mostrar diferença se houver
+                if (totalLines > processed) {
+                    const missing = totalLines - processed;
+                    summaryHtml += `<div class="bg-yellow-100 border border-yellow-300 rounded p-2 mt-2 text-sm text-yellow-800">
+                        <strong>⚠️ Atenção:</strong> ${missing} linha(s) não foram processadas. 
+                        Pode ser devido a timeout, linhas vazias ou erros.
+                    </div>`;
+                }
+                
+                const errorsHtml = (data.errors && data.errors.length)
+                    ? `<div class="mt-3 p-3 bg-red-50 border border-red-200 rounded text-red-700">
+                        <p class="font-semibold mb-2">Erros encontrados (${errorsCount}):</p>
+                        <ul class="list-disc ml-5 text-sm max-h-40 overflow-y-auto">
+                            ${data.errors.slice(0, 20).map(e => `<li>${e}</li>`).join('')}
+                        </ul>
+                        ${data.errors.length > 20 ? `<p class="text-xs mt-1">(+${data.errors.length - 20} mais erros - verifique os logs do servidor)</p>` : ''}
+                    </div>`
+                    : '';
+                
+                resultDiv.innerHTML = summaryHtml + errorsHtml;
             }
+            
+            // Recarregar lista de artigos
+            loadItems(1);
+            loadDashboard();
+            
             fileInput.value = '';
             if (uploadBtn) uploadBtn.disabled = true;
         } else {
