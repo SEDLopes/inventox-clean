@@ -5,22 +5,7 @@
 
 require_once 'db.php';
 
-// Debug: Verificar sessão
-error_log('Analytics API - Session data: ' . print_r($_SESSION, true));
-error_log('Analytics API - Cookies: ' . print_r($_COOKIE, true));
-
-// Verificar autenticação e role de admin
-try {
-    requireAuth();
-    error_log('Analytics API - Auth OK');
-    requireAdmin();
-    error_log('Analytics API - Admin OK');
-} catch (Exception $e) {
-    error_log('Analytics API - Auth/Admin Error: ' . $e->getMessage());
-    throw $e;
-}
-
-// Headers CORS
+// Headers CORS (ANTES da autenticação)
 header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
 header('Access-Control-Allow-Headers: Content-Type, Authorization');
@@ -29,6 +14,33 @@ header('Content-Type: application/json');
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     http_response_code(200);
     exit();
+}
+
+// Debug: Verificar sessão
+error_log('Analytics API - Session data: ' . print_r($_SESSION, true));
+error_log('Analytics API - Cookies: ' . print_r($_COOKIE, true));
+
+// Verificar autenticação e role de admin
+try {
+    requireAuth();
+    error_log('Analytics API - Auth OK');
+    
+    // Verificação manual de admin com mais debug
+    $userRole = $_SESSION['role'] ?? 'unknown';
+    error_log('Analytics API - User role: ' . $userRole);
+    
+    if ($userRole !== 'admin') {
+        error_log('Analytics API - Access denied. Role: ' . $userRole . ', Expected: admin');
+        sendJsonResponse([
+            'success' => false,
+            'message' => 'Acesso restrito a administradores. Role atual: ' . $userRole
+        ], 403);
+    }
+    
+    error_log('Analytics API - Admin OK');
+} catch (Exception $e) {
+    error_log('Analytics API - Auth/Admin Error: ' . $e->getMessage());
+    throw $e;
 }
 
 try {
