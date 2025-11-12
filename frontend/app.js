@@ -3438,10 +3438,28 @@ async function loadStockHistory(page = 1) {
             params.append('date_to', dateTo);
         }
         
-        // Usar API otimizada do histórico
-        const response = await fetch(`${API_BASE}/history_enhanced.php?${params.toString()}`, {
-            credentials: 'include'
-        });
+        // Tentar API otimizada primeiro, com fallback para API original
+        let response;
+        let useEnhanced = true;
+        
+        try {
+            response = await fetch(`${API_BASE}/history_enhanced.php?${params.toString()}`, {
+                credentials: 'include'
+            });
+            
+            if (!response.ok) {
+                console.warn('history_enhanced.php retornou erro, tentando stock_history.php...');
+                useEnhanced = false;
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+        } catch (error) {
+            console.warn('Erro ao acessar history_enhanced.php, usando fallback:', error);
+            useEnhanced = false;
+            // Fallback para API original
+            response = await fetch(`${API_BASE}/stock_history.php?${params.toString()}`, {
+                credentials: 'include'
+            });
+        }
         
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
@@ -3452,8 +3470,15 @@ async function loadStockHistory(page = 1) {
         
         try {
             data = JSON.parse(responseText);
+            console.log('Histórico carregado:', {
+                success: data.success,
+                movementsCount: data.movements ? data.movements.length : 0,
+                pagination: data.pagination,
+                useEnhanced: useEnhanced
+            });
         } catch (parseError) {
             console.error('Erro ao fazer parse do JSON:', parseError);
+            console.error('Resposta recebida:', responseText.substring(0, 500));
             hideLoading();
             showToast('Erro ao carregar histórico', 'error');
             return;
@@ -3463,36 +3488,105 @@ async function loadStockHistory(page = 1) {
         
         if (data.success) {
             const historyList = document.getElementById('historyList');
+            if (!historyList) {
+                console.error('Elemento historyList não encontrado');
+                hideLoading();
+                return;
+            }
+            
             historyList.innerHTML = '';
             
             if (data.movements && data.movements.length > 0) {
                 data.movements.forEach(movement => {
                     const movementCard = document.createElement('div');
-                    const typeColors = {
-                        'entrada': 'bg-green-100 text-green-800 border-green-300',
-                        'saida': 'bg-red-100 text-red-800 border-red-300',
-                        'ajuste': 'bg-yellow-100 text-yellow-800 border-yellow-300',
-                        'transferencia': 'bg-blue-100 text-blue-800 border-blue-300'
-                    };
-                    const colorClass = typeColors[movement.movement_type] || 'bg-gray-100 text-gray-800 border-gray-300';
                     
-                    movementCard.className = `bg-white rounded-lg p-4 border-l-4 ${colorClass.split(' ')[2]} border`;
+                    // Mapear tipos para cores e labels
+                    const typeMapping = {
+                        'entrada': {
+                            color: 'bg-green-100 text-green-800 border-green-300',
+                            label: 'Entrada',
+                            icon: '⬆️'
+                        },
+                        'saida': {
+                            color: 'bg-red-100 text-red-800 border-red-300',
+                            label: 'Saída',
+                            icon: '⬇️'
+                        },
+                        'contagem': {
+                            color: 'bg-blue-100 text-blue-800 border-blue-300',
+                            label: 'Contagem',
+                            icon: '✓'
+                        },
+                        'ajuste': {
+                            color: 'bg-yellow-100 text-yellow-800 border-yellow-300',
+                            label: 'Ajuste',
+                            icon: '⚙️'
+                        },
+                        'transferencia': {
+                            color: 'bg-purple-100 text-purple-800 border-purple-300',
+                            label: 'Transferência',
+                            icon: '↔️'
+                        }
+                    };
+                    
+                    // Usar type da API (pode ser 'entrada', 'saida', 'contagem', etc)
+                    const movementType = movement.type || 'contagem';
+                    const typeInfo = typeMapping[movementType] || {
+                        color: 'bg-gray-100 text-gray-800 border-gray-300',
+                        label: movementType,
+                        icon: '📋'
+                    };
+                    
+                    // Formatar data
+                    const date = new Date(movement.created_at);
+                    const formattedDate = date.toLocaleString('pt-PT', {
+                        day: '2-digit',
+                        month: '2-digit',
+                        year: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                    });
+                    
+                    // Quantidade (pode ser difference para contagens ou quantity para movimentos)
+                    const quantity = movement.quantity !== undefined ? movement.quantity : (movement.difference || 0);
+                    const quantityDisplay = quantity > 0 ? `+${quantity}` : `${quantity}`;
+                    
+                    // Descrição (pode ser description ou reason)
+                    const description = movement.description || movement.reason || '';
+                    
+                    // Informação adicional para contagens
+                    let additionalInfo = '';
+                    if (movement.source_type === 'inventory_count' && movement.counted_quantity !== undefined) {
+                        additionalInfo = `<p class="text-xs text-blue-600 mt-1">
+                            📊 Contado: ${movement.counted_quantity} | Esperado: ${movement.expected_quantity || 0}
+                        </p>`;
+                    }
+                    
+                    // Sessão (se disponível)
+                    let sessionInfo = '';
+                    if (movement.session_name) {
+                        sessionInfo = `<p class="text-xs text-gray-500">Sessão: ${movement.session_name}</p>`;
+                    }
+                    
+                    movementCard.className = `bg-white rounded-lg p-4 border-l-4 ${typeInfo.color.split(' ')[2]} border mb-3`;
                     movementCard.innerHTML = `
                         <div class="flex justify-between items-start">
                             <div class="flex-1">
                                 <div class="flex items-center space-x-3 mb-2">
-                                    <span class="px-2 py-1 rounded text-xs font-semibold ${colorClass}">
-                                        ${movement.movement_type_label}
+                                    <span class="px-2 py-1 rounded text-xs font-semibold ${typeInfo.color}">
+                                        ${typeInfo.icon} ${typeInfo.label}
                                     </span>
-                                    <span class="font-bold ${colorClass.split(' ')[0]}">
-                                        ${movement.quantity > 0 ? '+' : ''}${movement.quantity}
+                                    <span class="font-bold ${typeInfo.color.split(' ')[0]}">
+                                        ${quantityDisplay}
                                     </span>
                                 </div>
-                                <h4 class="font-bold text-lg">${movement.item_name}</h4>
-                                <p class="text-sm text-gray-600">Código: ${movement.barcode}</p>
-                                ${movement.reason ? `<p class="text-xs text-gray-500 mt-1">${movement.reason}</p>` : ''}
+                                <h4 class="font-bold text-lg">${movement.item_name || 'Item sem nome'}</h4>
+                                <p class="text-sm text-gray-600">Código: ${movement.barcode || 'N/A'}</p>
+                                ${description ? `<p class="text-xs text-gray-500 mt-1">${description}</p>` : ''}
+                                ${additionalInfo}
+                                ${sessionInfo}
                                 <p class="text-xs text-gray-500 mt-2">
-                                    Por: ${movement.user_name || 'Sistema'} | ${movement.formatted_date}
+                                    Por: ${movement.user_name || 'Sistema'} | ${formattedDate}
                                 </p>
                             </div>
                         </div>
