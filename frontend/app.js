@@ -107,7 +107,7 @@ function showDashboard(username) {
     const userRole = sessionStorage.getItem('userRole');
     const usersTabBtn = document.getElementById('usersTabBtn');
     const historyTabBtn = document.getElementById('historyTabBtn');
-    // const analyticsTabBtn = document.getElementById('analyticsTabBtn'); // DISABLED
+    // const analyticsTabBtn = document.getElementById('analyticsTabBtn'); // PERMANENTLY DISABLED - DO NOT ENABLE
     const deleteAllItemsBtn = document.getElementById('deleteAllItemsBtn');
     
     if (userRole === 'admin') {
