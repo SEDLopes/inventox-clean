@@ -326,11 +326,31 @@ function initEventListeners() {
     if (itemForm) itemForm.addEventListener('submit', saveItem);
     const searchItemsBtn = document.getElementById('searchItemsBtn');
     if (searchItemsBtn) searchItemsBtn.addEventListener('click', () => loadItems(1));
-    const itemsSearch = document.getElementById('itemsSearch');
-    if (itemsSearch) {
-        itemsSearch.addEventListener('keypress', (e) => {
+    const itemSearch = document.getElementById('itemSearch');
+    if (itemSearch) {
+        // Pesquisa ao pressionar Enter
+        itemSearch.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') {
                 loadItems(1);
+            }
+        });
+        
+        // Pesquisa enquanto digita (com debounce)
+        let searchTimeout;
+        itemSearch.addEventListener('input', (e) => {
+            clearTimeout(searchTimeout);
+            const query = e.target.value.trim();
+            
+            // Se o campo estiver vazio, carregar todos os artigos
+            if (query.length === 0) {
+                searchTimeout = setTimeout(() => {
+                    loadItems(1, '');
+                }, 300);
+            } else if (query.length >= 2) {
+                // Pesquisar após 500ms sem digitar (debounce)
+                searchTimeout = setTimeout(() => {
+                    loadItems(1, query);
+                }, 500);
             }
         });
     }
@@ -2513,8 +2533,8 @@ async function loadItems(page = 1, search = '') {
     try {
         showLoading();
         currentItemsPage = page;
-        const itemsSearchEl = document.getElementById('itemsSearch');
-        currentItemsSearch = search || (itemsSearchEl ? itemsSearchEl.value : '');
+        const itemSearchEl = document.getElementById('itemSearch');
+        currentItemsSearch = search || (itemSearchEl ? itemSearchEl.value : '');
         
         const params = new URLSearchParams({
             page: page,
