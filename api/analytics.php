@@ -75,6 +75,80 @@ function handleGetAnalytics() {
         $timeRange = 30;
     }
     
+    // Se há poucos dados, usar dados mock
+    $db = getDB();
+    $itemCount = $db->query("SELECT COUNT(*) FROM items")->fetchColumn();
+    $sessionCount = $db->query("SELECT COUNT(*) FROM inventory_sessions")->fetchColumn();
+    
+    if ($itemCount < 5 || $sessionCount < 1) {
+        error_log('Analytics: Using mock data due to insufficient real data');
+        
+        // Retornar dados mock se não há dados suficientes
+        $mockData = [
+            'kpis' => [
+                'totalScans' => 150,
+                'accuracy' => 96.5,
+                'productivity' => 28.7,
+                'efficiency' => 89.3,
+                'activeSessions' => 1,
+                'changes' => [
+                    'totalScans' => 12.5,
+                    'accuracy' => -0.8,
+                    'productivity' => 15.2,
+                    'efficiency' => 3.7
+                ]
+            ],
+            'trends' => [
+                ['date' => date('Y-m-d', strtotime('-6 days')), 'scans' => 20, 'accuracy' => 95, 'efficiency' => 85],
+                ['date' => date('Y-m-d', strtotime('-5 days')), 'scans' => 25, 'accuracy' => 96, 'efficiency' => 87],
+                ['date' => date('Y-m-d', strtotime('-4 days')), 'scans' => 30, 'accuracy' => 97, 'efficiency' => 89],
+                ['date' => date('Y-m-d', strtotime('-3 days')), 'scans' => 22, 'accuracy' => 94, 'efficiency' => 86],
+                ['date' => date('Y-m-d', strtotime('-2 days')), 'scans' => 28, 'accuracy' => 98, 'efficiency' => 91],
+                ['date' => date('Y-m-d', strtotime('-1 days')), 'scans' => 35, 'accuracy' => 96, 'efficiency' => 88],
+                ['date' => date('Y-m-d'), 'scans' => 40, 'accuracy' => 97, 'efficiency' => 92]
+            ],
+            'heatmap' => [
+                ['week' => 1, 'day' => 1, 'date' => date('Y-m-d'), 'scans' => 25, 'value' => 0.6],
+                ['week' => 1, 'day' => 2, 'date' => date('Y-m-d', strtotime('+1 day')), 'scans' => 30, 'value' => 0.7]
+            ],
+            'categories' => [
+                ['category_name' => 'Eletrônicos', 'scan_count' => 65],
+                ['category_name' => 'Roupas', 'scan_count' => 45],
+                ['category_name' => 'Casa & Jardim', 'scan_count' => 25],
+                ['category_name' => 'Livros', 'scan_count' => 15]
+            ],
+            'users' => [
+                ['username' => 'admin', 'role' => 'admin', 'total_scans' => 100, 'accuracy' => 97.5],
+                ['username' => 'operador1', 'role' => 'operador', 'total_scans' => 50, 'accuracy' => 95.2]
+            ],
+            'insights' => [
+                'Sistema funcionando corretamente',
+                'Dados insuficientes para análise detalhada',
+                'Recomenda-se realizar mais contagens para melhor análise'
+            ],
+            'recommendations' => [
+                'Adicione mais artigos ao sistema',
+                'Crie sessões de inventário regulares',
+                'Treine operadores para melhorar precisão'
+            ]
+        ];
+        
+        sendJsonResponse([
+            'success' => true,
+            'data' => $mockData,
+            'metadata' => [
+                'timeRange' => $timeRange,
+                'period' => $period,
+                'startDate' => date('Y-m-d H:i:s', strtotime("-{$timeRange} days")),
+                'endDate' => date('Y-m-d H:i:s'),
+                'generatedAt' => date('Y-m-d H:i:s'),
+                'dataType' => 'mock',
+                'reason' => 'Insufficient real data'
+            ]
+        ]);
+        return;
+    }
+    
     try {
         // Calcular datas
         $endDate = new DateTime();
