@@ -204,16 +204,23 @@ try {
             $categoryCache[strtolower(trim($cat['name']))] = $cat['id'];
         }
         
-        // Contar total de linhas para progresso (aproximado)
+        // Contar total de linhas ANTES de processar (usar novo handle para não afetar o ponteiro)
         $totalLines = 0;
         $fileHandleForCount = fopen($uploadPath, 'r');
         if ($fileHandleForCount) {
+            // Ler header primeiro (ignorar)
+            $headerLine = fgetcsv($fileHandleForCount, 0, $delimiter);
+            // Contar linhas restantes (dados)
             while (fgetcsv($fileHandleForCount, 0, $delimiter) !== FALSE) {
                 $totalLines++;
             }
             fclose($fileHandleForCount);
         }
-        $totalLines = max(1, $totalLines - 1); // Menos 1 para o header
+        // Se não conseguiu contar, usar file() como fallback
+        if ($totalLines == 0) {
+            $allLines = file($uploadPath, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+            $totalLines = max(0, count($allLines) - 1); // Menos 1 para o header
+        }
         
         // Iniciar transação para melhor performance
         $db->beginTransaction();
@@ -224,6 +231,11 @@ try {
         while (($rowData = fgetcsv($fileHandle, 0, $delimiter)) !== FALSE) {
             $lineNum++;
             $totalProcessed++;
+            
+            // Debug: log a cada 1000 linhas
+            if ($totalProcessed % 1000 == 0) {
+                error_log("Items import - Processed {$totalProcessed} lines so far...");
+            }
             
             // Verificar se linha está vazia
             $isEmpty = true;

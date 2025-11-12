@@ -41,15 +41,30 @@ try {
     // Verificar artigos sem nome
     $noName = $db->query("SELECT COUNT(*) FROM items WHERE name IS NULL OR name = ''")->fetchColumn();
     
-    // Pesquisar "tubo pvc" como exemplo
-    $searchExample = $db->prepare("
-        SELECT id, barcode, name 
-        FROM items 
-        WHERE name LIKE :search OR description LIKE :search OR barcode LIKE :search
-        LIMIT 10
-    ");
-    $searchExample->execute(['search' => '%tubo%pvc%']);
-    $searchResults = $searchExample->fetchAll(PDO::FETCH_ASSOC);
+    // Pesquisar "tubo pvc" como exemplo (múltiplas variações)
+    $searchTerms = ['%tubo%pvc%', '%tubo pvc%', '%TUBO%PVC%', '%tubo%', '%pvc%'];
+    $allSearchResults = [];
+    foreach ($searchTerms as $term) {
+        $searchExample = $db->prepare("
+            SELECT DISTINCT id, barcode, name, description
+            FROM items 
+            WHERE (LOWER(name) LIKE LOWER(:search) OR LOWER(description) LIKE LOWER(:search) OR barcode LIKE :search)
+            LIMIT 20
+        ");
+        $searchExample->execute(['search' => $term]);
+        $results = $searchExample->fetchAll(PDO::FETCH_ASSOC);
+        $allSearchResults = array_merge($allSearchResults, $results);
+    }
+    // Remover duplicados por ID
+    $uniqueResults = [];
+    $seenIds = [];
+    foreach ($allSearchResults as $result) {
+        if (!in_array($result['id'], $seenIds)) {
+            $uniqueResults[] = $result;
+            $seenIds[] = $result['id'];
+        }
+    }
+    $searchResults = array_slice($uniqueResults, 0, 20);
     
     // Estatísticas de importação recente (últimas 24h)
     $recentImports = $db->query("
