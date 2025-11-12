@@ -120,9 +120,12 @@ try {
                 
                 if ($search) {
                     // Pesquisa melhorada: busca exata de código de barras + busca parcial de nome/descrição
-                    $where[] = "(i.barcode = :search_exact OR i.name LIKE :search OR i.barcode LIKE :search OR i.description LIKE :search)";
-                    $params['search'] = "%{$search}%";
+                    // Usar placeholders únicos para cada uso
+                    $where[] = "(i.barcode = :search_exact OR i.name LIKE :search_name OR i.barcode LIKE :search_barcode OR i.description LIKE :search_desc)";
                     $params['search_exact'] = $search; // Busca exata para código de barras
+                    $params['search_name'] = "%{$search}%";
+                    $params['search_barcode'] = "%{$search}%";
+                    $params['search_desc'] = "%{$search}%";
                 }
                 
                 if ($categoryId) {
@@ -137,13 +140,21 @@ try {
                 $whereClause = !empty($where) ? 'WHERE ' . implode(' AND ', $where) : '';
                 
                 // Contar total
-                $countStmt = $db->prepare("
-                    SELECT COUNT(*) as total
-                    FROM items i
-                    {$whereClause}
-                ");
-                $countStmt->execute($params);
-                $total = $countStmt->fetch()['total'];
+                try {
+                    $countStmt = $db->prepare("
+                        SELECT COUNT(*) as total
+                        FROM items i
+                        {$whereClause}
+                    ");
+                    foreach ($params as $key => $value) {
+                        $countStmt->bindValue(":{$key}", $value);
+                    }
+                    $countStmt->execute();
+                    $total = $countStmt->fetch()['total'];
+                } catch (Exception $e) {
+                    error_log("Items API - Count query error: " . $e->getMessage() . " | Query: " . $whereClause . " | Params: " . json_encode($params));
+                    throw $e;
+                }
                 
                 // Buscar itens
                 $stmt = $db->prepare("
