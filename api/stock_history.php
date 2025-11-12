@@ -6,6 +6,17 @@
 
 require_once __DIR__ . '/db.php';
 
+// Headers CORS (ANTES da autenticação)
+header('Access-Control-Allow-Origin: *');
+header('Access-Control-Allow-Methods: GET, OPTIONS');
+header('Access-Control-Allow-Headers: Content-Type, Authorization');
+header('Content-Type: application/json');
+
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+    http_response_code(200);
+    exit();
+}
+
 // Verificar autenticação
 requireAuth();
 
@@ -48,48 +59,106 @@ try {
     $dateFrom = isset($_GET['date_from']) ? sanitizeInput($_GET['date_from']) : null;
     $dateTo = isset($_GET['date_to']) ? sanitizeInput($_GET['date_to']) : null;
     
-    // Construir query
-    $query = "
-        SELECT 
-            sm.id,
-            sm.item_id,
-            i.barcode,
-            i.name as item_name,
-            sm.movement_type,
-            sm.quantity,
-            sm.reason,
-            sm.user_id,
-            u.username as user_name,
-            sm.created_at
-        FROM stock_movements sm
-        INNER JOIN items i ON sm.item_id = i.id
-        LEFT JOIN users u ON sm.user_id = u.id
-        WHERE 1=1
-    ";
+    // Verificar se a tabela inventory_counts existe
+    $checkInventoryTable = $db->query("SHOW TABLES LIKE 'inventory_counts'");
+    $hasInventoryCounts = $checkInventoryTable->rowCount() > 0;
     
+    // Construir query unificada (UNION) para incluir tanto movimentos quanto contagens
+    if ($hasInventoryCounts) {
+        $query = "
+            (SELECT 
+                CONCAT('movement_', sm.id) as id,
+                sm.item_id,
+                i.barcode,
+                i.name as item_name,
+                sm.movement_type as type,
+                sm.quantity,
+                sm.reason as description,
+                sm.user_id,
+                u.username as user_name,
+                sm.created_at,
+                'movement' as source_type
+            FROM stock_movements sm
+            INNER JOIN items i ON sm.item_id = i.id
+            LEFT JOIN users u ON sm.user_id = u.id
+            WHERE 1=1)
+            
+            UNION ALL
+            
+            (SELECT 
+                CONCAT('count_', ic.id) as id,
+                ic.item_id,
+                i.barcode,
+                i.name as item_name,
+                CASE 
+                    WHEN ic.difference > 0 THEN 'entrada'
+                    WHEN ic.difference < 0 THEN 'saida'
+                    ELSE 'contagem'
+                END as type,
+                ic.difference as quantity,
+                CONCAT('Contagem de inventário - Contado: ', ic.counted_quantity, ', Esperado: ', ic.expected_quantity) as description,
+                ic.user_id,
+                u.username as user_name,
+                ic.counted_at as created_at,
+                'inventory_count' as source_type
+            FROM inventory_counts ic
+            INNER JOIN items i ON ic.item_id = i.id
+            LEFT JOIN users u ON ic.user_id = u.id
+            WHERE 1=1)
+        ";
+    } else {
+        // Fallback para apenas movimentos se inventory_counts não existir
+        $query = "
+            SELECT 
+                sm.id,
+                sm.item_id,
+                i.barcode,
+                i.name as item_name,
+                sm.movement_type as type,
+                sm.quantity,
+                sm.reason as description,
+                sm.user_id,
+                u.username as user_name,
+                sm.created_at,
+                'movement' as source_type
+            FROM stock_movements sm
+            INNER JOIN items i ON sm.item_id = i.id
+            LEFT JOIN users u ON sm.user_id = u.id
+            WHERE 1=1
+        ";
+    }
+    
+    // Aplicar filtros na query UNION
+    $whereConditions = [];
     $params = [];
     
     if ($itemId) {
-        $query .= " AND sm.item_id = :item_id";
+        $whereConditions[] = "item_id = :item_id";
         $params['item_id'] = $itemId;
     }
     
-    if ($movementType && in_array($movementType, ['entrada', 'saida', 'ajuste', 'transferencia'])) {
-        $query .= " AND sm.movement_type = :movement_type";
+    if ($movementType && in_array($movementType, ['entrada', 'saida', 'ajuste', 'transferencia', 'contagem'])) {
+        $whereConditions[] = "type = :movement_type";
         $params['movement_type'] = $movementType;
     }
     
     if ($dateFrom) {
-        $query .= " AND DATE(sm.created_at) >= :date_from";
+        $whereConditions[] = "DATE(created_at) >= :date_from";
         $params['date_from'] = $dateFrom;
     }
     
     if ($dateTo) {
-        $query .= " AND DATE(sm.created_at) <= :date_to";
+        $whereConditions[] = "DATE(created_at) <= :date_to";
         $params['date_to'] = $dateTo;
     }
     
-    $query .= " ORDER BY sm.created_at DESC LIMIT :limit OFFSET :offset";
+    // Se há filtros, aplicar na query UNION usando subquery
+    if (!empty($whereConditions)) {
+        $whereClause = " WHERE " . implode(" AND ", $whereConditions);
+        $query = "SELECT * FROM ($query) as unified_history $whereClause";
+    }
+    
+    $query .= " ORDER BY created_at DESC LIMIT :limit OFFSET :offset";
     
     $stmt = $db->prepare($query);
     foreach ($params as $key => $value) {
