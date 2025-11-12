@@ -232,12 +232,19 @@
                 padding: 1rem !important;
             }
             
-            #loginSection .max-w-sm {
-                max-width: 100% !important;
+            #loginSection .max-w-xs {
+                max-width: 90% !important;
             }
             
-            #loginSection .p-8 {
-                padding: 1.5rem !important;
+            #loginSection .p-6 {
+                padding: 1rem !important;
+            }
+        }
+        
+        /* Desktop Login - Force smaller width */
+        @media (min-width: 641px) {
+            #loginSection .max-w-xs {
+                max-width: 300px !important;
             }
         }
         
@@ -499,7 +506,7 @@
 
     <!-- Login Screen -->
     <div id="loginSection" class="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-        <div class="max-w-sm w-full space-y-8">
+        <div class="max-w-xs w-full space-y-8">
             <div class="text-center">
                 <div class="mx-auto h-16 w-16 bg-blue-600 rounded-full flex items-center justify-center mb-4">
                     <span class="text-white text-2xl font-bold">IX</span>
@@ -508,7 +515,7 @@
                 <p class="text-sm text-gray-600">Entre na sua conta</p>
             </div>
             
-            <div class="bg-white rounded-xl shadow-lg p-8">
+            <div class="bg-white rounded-xl shadow-lg p-6">
                 <div id="loginError" class="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg hidden"></div>
                 
                 <form id="loginForm" class="space-y-6">
