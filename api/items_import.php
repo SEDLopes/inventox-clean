@@ -306,13 +306,64 @@ try {
                     $stmtUpdate->execute($updateParams);
                     $updated++;
                 } else {
-                    // Inserir
-                    $stmtInsert = $db->prepare("
-                        INSERT INTO items (barcode, name, description, category_id, quantity, min_quantity, unit_price, location, supplier)
-                        VALUES (:barcode, :name, :description, :category_id, :quantity, :min_quantity, :unit_price, :location, :supplier)
-                    ");
-                    $stmtInsert->execute($params);
-                    $imported++;
+                    // Inserir - usar INSERT IGNORE ou ON DUPLICATE KEY UPDATE para evitar erros
+                    try {
+                        $stmtInsert = $db->prepare("
+                            INSERT INTO items (barcode, name, description, category_id, quantity, min_quantity, unit_price, location, supplier)
+                            VALUES (:barcode, :name, :description, :category_id, :quantity, :min_quantity, :unit_price, :location, :supplier)
+                        ");
+                        $stmtInsert->execute($params);
+                        
+                        // Verificar se realmente foi inserido (pode falhar silenciosamente se houver duplicado)
+                        $verifyStmt = $db->prepare("SELECT id FROM items WHERE barcode = :barcode");
+                        $verifyStmt->execute(['barcode' => $barcode]);
+                        $verified = $verifyStmt->fetch();
+                        
+                        if ($verified) {
+                            $imported++;
+                        } else {
+                            // Não foi inserido - provavelmente duplicado ou outro erro
+                            $errors[] = "Linha {$lineNum}: Falha ao inserir artigo '{$name}' (barcode: {$barcode}) - possível duplicado ou erro de constraint";
+                            $skipped++;
+                            error_log("Items import - Failed to insert item at line {$lineNum}: barcode={$barcode}, name={$name}");
+                        }
+                    } catch (PDOException $pdoErr) {
+                        // Capturar erros de constraint (duplicados, etc.)
+                        $errorCode = $pdoErr->getCode();
+                        $errorMessage = $pdoErr->getMessage();
+                        
+                        if ($errorCode == 23000 || strpos($errorMessage, 'Duplicate entry') !== false || strpos($errorMessage, 'UNIQUE constraint') !== false) {
+                            // Duplicado - tentar atualizar em vez de inserir
+                            $stmtCheckAgain = $db->prepare("SELECT id FROM items WHERE barcode = :barcode");
+                            $stmtCheckAgain->execute(['barcode' => $barcode]);
+                            $duplicateItem = $stmtCheckAgain->fetch();
+                            
+                            if ($duplicateItem) {
+                                // Atualizar o duplicado
+                                $updateParams = [];
+                                $updateFields = [];
+                                foreach ($params as $key => $value) {
+                                    if ($key !== 'barcode') {
+                                        $updateFields[] = "{$key} = :{$key}";
+                                        $updateParams[$key] = $value;
+                                    }
+                                }
+                                $updateParams['id'] = $duplicateItem['id'];
+                                $stmtUpdate = $db->prepare("UPDATE items SET " . implode(', ', $updateFields) . " WHERE id = :id");
+                                $stmtUpdate->execute($updateParams);
+                                $updated++;
+                                $errors[] = "Linha {$lineNum}: Artigo '{$name}' (barcode: {$barcode}) já existe - foi atualizado em vez de inserido";
+                            } else {
+                                $errors[] = "Linha {$lineNum}: Erro ao inserir '{$name}' (barcode: {$barcode}) - {$errorMessage}";
+                                $skipped++;
+                            }
+                        } else {
+                            // Outro tipo de erro
+                            $errors[] = "Linha {$lineNum}: Erro ao inserir '{$name}' (barcode: {$barcode}) - {$errorMessage}";
+                            $skipped++;
+                            error_log("Items import - PDO error at line {$lineNum}: " . $errorMessage);
+                        }
+                    }
                 }
                 
                 // Commit em batch para melhor performance
@@ -352,7 +403,8 @@ try {
         // Log resumo da importação
         error_log("Items import completed - Total lines: {$totalLines}, Processed: {$totalProcessed}, Imported: {$imported}, Updated: {$updated}, Skipped: {$skipped}, Errors: " . count($errors));
         
-        $message = "Importação CSV concluída: {$imported} importados, {$updated} atualizados";
+        // Mensagem mais clara: importados são NOVOS artigos, atualizados são artigos que já existiam
+        $message = "Importação CSV concluída: {$imported} novos artigos importados, {$updated} artigos atualizados";
         if ($skipped > 0) {
             $message .= ", {$skipped} linhas ignoradas";
         }
@@ -360,6 +412,11 @@ try {
             $message .= ", " . count($errors) . " erros";
         }
         $message .= ".";
+        
+        // Adicionar aviso se muitos foram atualizados em vez de importados
+        if ($updated > $imported && $updated > 100) {
+            $message .= " Nota: Muitos artigos foram atualizados (já existiam na base de dados).";
+        }
         
         sendJsonResponse([
             'success' => true,
