@@ -6195,11 +6195,8 @@ async function loadAnalyticsData() {
     try {
         showEnhancedLoading('Carregando Análise...', 'Processando dados em tempo real');
         
-        // Simulate data loading
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        
-        // Generate mock data based on time range and existing data
-        analyticsState.data = await generateAnalyticsData();
+        // Fetch real data from API
+        analyticsState.data = await fetchAnalyticsFromAPI();
         
         // Update all components
         updateKPIs();
@@ -6215,10 +6212,81 @@ async function loadAnalyticsData() {
         hideEnhancedLoading();
         showErrorToast('Erro de Análise', 'Não foi possível carregar os dados');
         log.debug('Analytics loading error:', error);
+        
+        // Fallback to mock data if API fails
+        try {
+            analyticsState.data = await generateMockAnalyticsData();
+            updateKPIs();
+            updateActivityTrendChart();
+            updatePerformanceHeatmap();
+            updateCategoryDistribution();
+            updateUserRanking();
+            updateInsightsAndRecommendations();
+            showSuccessToast('Dados Simulados', 'Usando dados de exemplo (API indisponível)');
+        } catch (fallbackError) {
+            log.debug('Fallback data generation failed:', fallbackError);
+        }
     }
 }
 
-async function generateAnalyticsData() {
+async function fetchAnalyticsFromAPI() {
+    try {
+        const response = await fetch(`${API_BASE}/analytics.php?timeRange=${analyticsState.timeRange}&period=${analyticsState.currentPeriod}`, {
+            method: 'GET',
+            credentials: 'include',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const result = await response.json();
+        
+        if (!result.success) {
+            throw new Error(result.message || 'Erro na resposta da API');
+        }
+        
+        // Transform API data to match frontend format
+        const apiData = result.data;
+        
+        return {
+            kpis: {
+                totalScans: apiData.kpis.totalScans,
+                productivity: apiData.kpis.productivity,
+                accuracy: apiData.kpis.accuracy,
+                efficiency: apiData.kpis.efficiency,
+                activeSessions: apiData.kpis.activeSessions,
+                changes: apiData.kpis.changes
+            },
+            trends: apiData.trends.map(trend => ({
+                date: new Date(trend.date),
+                scans: trend.scans,
+                accuracy: trend.accuracy,
+                efficiency: trend.efficiency
+            })),
+            heatmap: apiData.heatmap.map(cell => ({
+                week: cell.week,
+                day: cell.day,
+                date: new Date(cell.date),
+                scans: cell.scans,
+                value: cell.value
+            })),
+            categories: apiData.categories,
+            users: apiData.users,
+            insights: apiData.insights,
+            recommendations: apiData.recommendations
+        };
+        
+    } catch (error) {
+        log.debug('API fetch error:', error);
+        throw error;
+    }
+}
+
+async function generateMockAnalyticsData() {
     const scanHistory = JSON.parse(localStorage.getItem('inventox_scan_history') || '[]');
     const scanCount = parseInt(localStorage.getItem('inventox_scan_count_today') || '0');
     
@@ -6660,9 +6728,132 @@ function generateRecommendations() {
 }
 
 function updateInsightsAndRecommendations() {
-    // Insights and recommendations are already rendered in HTML
-    // This function would update them dynamically if needed
+    updateInsightsSection();
+    updateRecommendationsSection();
     log.debug('Insights and recommendations updated');
+}
+
+function updateInsightsSection() {
+    const insightsContainer = document.getElementById('aiInsights');
+    if (!insightsContainer || !analyticsState.data.insights) return;
+    
+    const insights = analyticsState.data.insights;
+    
+    if (insights.length === 0) {
+        insightsContainer.innerHTML = `
+            <div class="text-center text-gray-500 py-8">
+                <div class="text-4xl mb-2">💡</div>
+                <p class="text-sm">Nenhum insight disponível</p>
+                <p class="text-xs text-gray-400">Os insights aparecerão com mais dados</p>
+            </div>
+        `;
+        return;
+    }
+    
+    const insightsHTML = insights.map(insight => {
+        const colorClasses = {
+            blue: 'bg-blue-50 border-blue-200 text-blue-800',
+            green: 'bg-green-50 border-green-200 text-green-800',
+            yellow: 'bg-yellow-50 border-yellow-200 text-yellow-800',
+            red: 'bg-red-50 border-red-200 text-red-800'
+        };
+        
+        const iconBgColors = {
+            blue: 'bg-blue-500',
+            green: 'bg-green-500',
+            yellow: 'bg-yellow-500',
+            red: 'bg-red-500'
+        };
+        
+        return `
+            <div class="insight-card p-4 ${colorClasses[insight.color]} border rounded-lg">
+                <div class="flex items-start space-x-3">
+                    <div class="w-8 h-8 ${iconBgColors[insight.color]} rounded-full flex items-center justify-center flex-shrink-0">
+                        <span class="text-white text-sm">${insight.icon}</span>
+                    </div>
+                    <div>
+                        <h4 class="font-semibold mb-1">${insight.title}</h4>
+                        <p class="text-sm opacity-90">${insight.message}</p>
+                        <button class="text-xs hover:underline mt-2">Ver detalhes →</button>
+                    </div>
+                </div>
+            </div>
+        `;
+    }).join('');
+    
+    insightsContainer.innerHTML = insightsHTML;
+}
+
+function updateRecommendationsSection() {
+    const recommendationsContainer = document.getElementById('aiRecommendations');
+    if (!recommendationsContainer || !analyticsState.data.recommendations) return;
+    
+    const recommendations = analyticsState.data.recommendations;
+    
+    if (recommendations.length === 0) {
+        recommendationsContainer.innerHTML = `
+            <div class="text-center text-gray-500 py-8">
+                <div class="text-4xl mb-2">🚀</div>
+                <p class="text-sm">Nenhuma recomendação disponível</p>
+                <p class="text-xs text-gray-400">As recomendações aparecerão com mais dados</p>
+            </div>
+        `;
+        return;
+    }
+    
+    const recommendationsHTML = recommendations.map(rec => {
+        const colorClasses = {
+            purple: 'bg-purple-50 border-purple-200 text-purple-800',
+            indigo: 'bg-indigo-50 border-indigo-200 text-indigo-800',
+            teal: 'bg-teal-50 border-teal-200 text-teal-800',
+            orange: 'bg-orange-50 border-orange-200 text-orange-800'
+        };
+        
+        const iconBgColors = {
+            purple: 'bg-purple-500',
+            indigo: 'bg-indigo-500',
+            teal: 'bg-teal-500',
+            orange: 'bg-orange-500'
+        };
+        
+        const buttonColors = {
+            purple: 'bg-purple-600 hover:bg-purple-700',
+            indigo: 'bg-indigo-600 hover:bg-indigo-700',
+            teal: 'bg-teal-600 hover:bg-teal-700',
+            orange: 'bg-orange-600 hover:bg-orange-700'
+        };
+        
+        const textColors = {
+            purple: 'text-purple-600 hover:text-purple-800',
+            indigo: 'text-indigo-600 hover:text-indigo-800',
+            teal: 'text-teal-600 hover:text-teal-800',
+            orange: 'text-orange-600 hover:text-orange-800'
+        };
+        
+        const actionsHTML = rec.actions ? rec.actions.map(action => `
+            <button class="text-xs ${buttonColors[rec.color]} text-white px-2 py-1 rounded">${action}</button>
+        `).join('') : '';
+        
+        return `
+            <div class="recommendation-card p-4 ${colorClasses[rec.color]} border rounded-lg">
+                <div class="flex items-start space-x-3">
+                    <div class="w-8 h-8 ${iconBgColors[rec.color]} rounded-full flex items-center justify-center flex-shrink-0">
+                        <span class="text-white text-sm">${rec.icon}</span>
+                    </div>
+                    <div>
+                        <h4 class="font-semibold mb-1">${rec.title}</h4>
+                        <p class="text-sm opacity-90">${rec.message}</p>
+                        <div class="flex items-center space-x-2 mt-2">
+                            ${actionsHTML}
+                            <button class="text-xs ${textColors[rec.color]}">Mais info</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }).join('');
+    
+    recommendationsContainer.innerHTML = recommendationsHTML;
 }
 
 // ===================================
@@ -6679,15 +6870,22 @@ async function exportAnalyticsData() {
         const exportData = {
             timestamp: new Date().toISOString(),
             timeRange: analyticsState.timeRange,
+            period: analyticsState.currentPeriod,
             kpis: analyticsState.data.kpis,
             summary: {
                 totalScans: analyticsState.data.kpis.totalScans,
                 accuracy: analyticsState.data.kpis.accuracy,
+                productivity: analyticsState.data.kpis.productivity,
+                efficiency: analyticsState.data.kpis.efficiency,
+                activeSessions: analyticsState.data.kpis.activeSessions,
                 topUser: analyticsState.data.users[0]?.name || 'N/A',
-                topCategory: analyticsState.data.categories[0]?.name || 'N/A'
+                topCategory: analyticsState.data.categories[0]?.name || 'N/A',
+                totalCategories: analyticsState.data.categories.length,
+                totalUsers: analyticsState.data.users.length
             },
             insights: analyticsState.data.insights.length,
-            recommendations: analyticsState.data.recommendations.length
+            recommendations: analyticsState.data.recommendations.length,
+            trendsCount: analyticsState.data.trends.length
         };
         
         // Create CSV content
@@ -6717,17 +6915,72 @@ async function exportAnalyticsData() {
 function generateCSVExport(data) {
     const headers = ['Métrica', 'Valor', 'Alteração'];
     const rows = [
-        ['Total de Scans', data.kpis.totalScans, `+${data.kpis.changes.scans}%`],
-        ['Produtividade', data.kpis.productivity, `+${data.kpis.changes.productivity}%`],
-        ['Precisão', `${data.kpis.accuracy}%`, `+${data.kpis.changes.accuracy}%`],
-        ['Eficiência', `${data.kpis.efficiency}%`, `+${data.kpis.changes.efficiency}%`],
+        ['=== INVENTOX ANALYTICS REPORT ===', '', ''],
+        ['Gerado em', new Date().toLocaleString('pt-PT'), ''],
+        ['Período de Análise', `${data.timeRange} dias`, ''],
+        ['Visualização', data.period, ''],
         ['', '', ''],
-        ['Resumo', '', ''],
-        ['Utilizador Top', data.summary.topUser, ''],
-        ['Categoria Top', data.summary.topCategory, ''],
+        ['=== KPIs PRINCIPAIS ===', '', ''],
+        ['Total de Scans', data.kpis.totalScans, `${data.kpis.changes.scans >= 0 ? '+' : ''}${data.kpis.changes.scans}%`],
+        ['Produtividade (scans/dia)', data.kpis.productivity, `${data.kpis.changes.productivity >= 0 ? '+' : ''}${data.kpis.changes.productivity}%`],
+        ['Precisão', `${data.kpis.accuracy}%`, `${data.kpis.changes.accuracy >= 0 ? '+' : ''}${data.kpis.changes.accuracy}%`],
+        ['Eficiência', `${data.kpis.efficiency}%`, `${data.kpis.changes.efficiency >= 0 ? '+' : ''}${data.kpis.changes.efficiency}%`],
+        ['Sessões Ativas', data.kpis.activeSessions, ''],
+        ['', '', ''],
+        ['=== RESUMO EXECUTIVO ===', '', ''],
+        ['Utilizador Top Performance', data.summary.topUser, ''],
+        ['Categoria Mais Scaneada', data.summary.topCategory, ''],
+        ['Total de Categorias', data.summary.totalCategories, ''],
+        ['Total de Utilizadores Ativos', data.summary.totalUsers, ''],
+        ['Pontos de Dados Analisados', data.trendsCount, ''],
+        ['', '', ''],
+        ['=== ANÁLISE INTELIGENTE ===', '', ''],
         ['Insights Gerados', data.insights, ''],
-        ['Recomendações', data.recommendations, '']
+        ['Recomendações Disponíveis', data.recommendations, ''],
+        ['', '', ''],
+        ['=== CATEGORIAS ===', '', '']
     ];
+    
+    // Add category data if available
+    if (analyticsState.data.categories && analyticsState.data.categories.length > 0) {
+        analyticsState.data.categories.forEach(category => {
+            rows.push([category.name, `${category.count} scans`, `${category.percentage}%`]);
+        });
+    }
+    
+    rows.push(['', '', '']);
+    rows.push(['=== UTILIZADORES ===', '', '']);
+    
+    // Add user data if available
+    if (analyticsState.data.users && analyticsState.data.users.length > 0) {
+        analyticsState.data.users.forEach((user, index) => {
+            rows.push([
+                `${index + 1}º ${user.name}`, 
+                `${user.scans} scans`, 
+                `${user.accuracy}% precisão`
+            ]);
+        });
+    }
+    
+    rows.push(['', '', '']);
+    rows.push(['=== INSIGHTS ===', '', '']);
+    
+    // Add insights if available
+    if (analyticsState.data.insights && analyticsState.data.insights.length > 0) {
+        analyticsState.data.insights.forEach(insight => {
+            rows.push([insight.title, insight.message, insight.type]);
+        });
+    }
+    
+    rows.push(['', '', '']);
+    rows.push(['=== RECOMENDAÇÕES ===', '', '']);
+    
+    // Add recommendations if available
+    if (analyticsState.data.recommendations && analyticsState.data.recommendations.length > 0) {
+        analyticsState.data.recommendations.forEach(rec => {
+            rows.push([rec.title, rec.message, rec.type]);
+        });
+    }
     
     const csvContent = [headers, ...rows]
         .map(row => row.map(cell => `"${cell}"`).join(','))
