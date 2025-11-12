@@ -47,6 +47,7 @@ try {
     
     // Base query para contagens de inventário (dados principais)
     // Usar LEFT JOIN para items para incluir contagens mesmo se item foi deletado
+    // NOTA: user_id está na tabela inventory_sessions, não em inventory_counts
     $countQuery = "
         SELECT 
             CONCAT('count_', ic.id) as id,
@@ -63,15 +64,15 @@ try {
             ic.counted_quantity,
             ic.expected_quantity,
             CONCAT('Contagem: ', ic.counted_quantity, ' (esperado: ', ic.expected_quantity, ')') as description,
-            ic.user_id,
+            s.user_id,
             COALESCE(u.username, 'Sistema') as user_name,
             ic.session_id,
             COALESCE(s.name, 'Sessão Removida') as session_name,
             ic.counted_at as created_at
         FROM inventory_counts ic
         LEFT JOIN items i ON ic.item_id = i.id
-        LEFT JOIN users u ON ic.user_id = u.id
         LEFT JOIN inventory_sessions s ON ic.session_id = s.id
+        LEFT JOIN users u ON s.user_id = u.id
         WHERE 1=1
     ";
     
@@ -112,8 +113,9 @@ try {
     }
     
     // Filtro por usuário
+    // NOTA: Para contagens, user_id está na sessão (s.user_id), não na contagem
     if ($userId) {
-        $countQuery .= " AND ic.user_id = :user_id";
+        $countQuery .= " AND s.user_id = :user_id";
         $movementQuery .= " AND sm.user_id = :user_id";
         $countParams['user_id'] = $userId;
         $movementParams['user_id'] = $userId;
