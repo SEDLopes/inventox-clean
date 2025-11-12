@@ -6377,7 +6377,7 @@ async function loadAnalyticsData() {
 
 async function fetchAnalyticsFromAPI() {
     try {
-        const response = await fetch(`${API_BASE}/analytics_working.php?timeRange=${analyticsState.timeRange}&period=${analyticsState.currentPeriod}`, {
+        const response = await fetch(`${API_BASE}/analytics.php?timeRange=${analyticsState.timeRange}&period=${analyticsState.currentPeriod}`, {
             method: 'GET',
             credentials: 'include',
             headers: {
