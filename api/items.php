@@ -119,8 +119,10 @@ try {
                 $params = [];
                 
                 if ($search) {
-                    $where[] = "(i.name LIKE :search OR i.barcode LIKE :search OR i.description LIKE :search)";
+                    // Pesquisa melhorada: busca exata de código de barras + busca parcial de nome/descrição
+                    $where[] = "(i.barcode = :search_exact OR i.name LIKE :search OR i.barcode LIKE :search OR i.description LIKE :search)";
                     $params['search'] = "%{$search}%";
+                    $params['search_exact'] = $search; // Busca exata para código de barras
                 }
                 
                 if ($categoryId) {

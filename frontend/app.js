@@ -4350,8 +4350,12 @@ function handleKeyboardShortcuts(event) {
             case 'k':
             case 'K':
                 event.preventDefault();
-                // TODO: Implement global search
-                showSuccessToast('Pesquisa Global', 'Em breve disponível');
+                // Abrir pesquisa global (implementada em initGlobalSearch)
+                if (typeof openGlobalSearch === 'function') {
+                    openGlobalSearch();
+                } else {
+                    showSuccessToast('Pesquisa Global', 'A carregar...');
+                }
                 break;
         }
     }
@@ -5891,18 +5895,32 @@ async function searchAllSources(query, filter) {
     
     // Search in different sources based on filter
     if (filter === 'all' || filter === 'items') {
-        // Mock items search
-        const itemResults = [
-            { type: 'item', id: 1, title: 'Produto Exemplo A', description: 'Código: ABC123', stock: 15, category: 'Eletrónicos' },
-            { type: 'item', id: 2, title: 'Produto Exemplo B', description: 'Código: DEF456', stock: 3, category: 'Vestuário' },
-            { type: 'item', id: 3, title: 'Produto Exemplo C', description: 'Código: GHI789', stock: 0, category: 'Casa' }
-        ].filter(item => 
-            item.title.toLowerCase().includes(lowerQuery) ||
-            item.description.toLowerCase().includes(lowerQuery) ||
-            item.category.toLowerCase().includes(lowerQuery)
-        );
-        
-        results.push(...itemResults);
+        // Pesquisa REAL na base de dados
+        try {
+            const response = await fetch(`${API_BASE}/items.php?search=${encodeURIComponent(query)}`, {
+                credentials: 'include'
+            });
+            
+            if (response.ok) {
+                const data = await response.json();
+                if (data.success && data.items) {
+                    const itemResults = data.items.map(item => ({
+                        type: 'item',
+                        id: item.id,
+                        title: item.name || 'Item sem nome',
+                        description: `Código: ${item.barcode || 'N/A'} | Stock: ${item.quantity || 0}`,
+                        stock: item.quantity || 0,
+                        category: item.category_name || 'Sem categoria',
+                        barcode: item.barcode,
+                        category_id: item.category_id
+                    }));
+                    results.push(...itemResults);
+                }
+            }
+        } catch (error) {
+            console.error('Erro ao pesquisar artigos:', error);
+            // Fallback: continuar sem resultados de items
+        }
     }
     
     if (filter === 'all' || filter === 'sessions') {
@@ -6080,8 +6098,33 @@ function selectSearchResult(result) {
     // Handle different result types
     switch (result.type) {
         case 'item':
+            closeGlobalSearch();
             switchTab('items');
-            showSuccessToast('Navegação', `Indo para artigo: ${result.title}`);
+            
+            // Filtrar e destacar o artigo encontrado
+            setTimeout(() => {
+                const searchInput = document.getElementById('itemSearch');
+                if (searchInput && result.barcode) {
+                    searchInput.value = result.barcode;
+                    // Disparar evento de pesquisa
+                    const event = new Event('input', { bubbles: true });
+                    searchInput.dispatchEvent(event);
+                }
+                
+                // Scroll para o artigo se estiver visível
+                setTimeout(() => {
+                    const itemElement = document.querySelector(`[data-item-id="${result.id}"]`);
+                    if (itemElement) {
+                        itemElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        itemElement.classList.add('ring-2', 'ring-blue-500');
+                        setTimeout(() => {
+                            itemElement.classList.remove('ring-2', 'ring-blue-500');
+                        }, 3000);
+                    }
+                }, 500);
+            }, 300);
+            
+            showSuccessToast('Artigo Encontrado', `${result.title} (${result.barcode || 'N/A'})`);
             break;
         case 'session':
             switchTab('sessions');
@@ -6362,6 +6405,8 @@ function initKeyboardShortcuts() {
 // Make functions available globally
 window.selectSearchResultByIndex = selectSearchResultByIndex;
 window.searchFromHistory = searchFromHistory;
+window.openGlobalSearch = openGlobalSearch;
+window.closeGlobalSearch = closeGlobalSearch;
 
 // ===================================
 // 🎯 INITIALIZE GLOBAL SEARCH
