@@ -4715,7 +4715,628 @@ if (originalSwitchTab) {
         enhancedSwitchTab(tabName);
         if (tabName === 'scanner') {
             setTimeout(initEnhancedScanner, 100);
+        } else if (tabName === 'dashboard') {
+            setTimeout(initInteractiveDashboard, 100);
         }
     };
 }
+
+// ===================================
+// 📊 INTERACTIVE DASHBOARD SYSTEM - FASE 3
+// ===================================
+
+// Dashboard Enhancement State
+let dashboardState = {
+    widgets: {},
+    layout: JSON.parse(localStorage.getItem('inventox_dashboard_layout') || 'null'),
+    realTimeEnabled: true,
+    updateInterval: null,
+    alerts: [],
+    metrics: {
+        scansToday: 0,
+        activeSessions: 0,
+        alerts: 0,
+        efficiency: 0,
+        scansPerHour: 0,
+        avgScanTime: 0
+    }
+};
+
+// Initialize Interactive Dashboard
+function initInteractiveDashboard() {
+    initDashboardControls();
+    initWidgetSystem();
+    initRealTimeMetrics();
+    initSmartAlerts();
+    loadDashboardLayout();
+    
+    log.debug('Interactive Dashboard initialized');
+}
+
+// ===================================
+// 🎛️ DASHBOARD CONTROLS
+// ===================================
+
+function initDashboardControls() {
+    const refreshBtn = document.getElementById('refreshDashboard');
+    const customizeBtn = document.getElementById('customizeDashboard');
+    const resetBtn = document.getElementById('resetDashboard');
+    
+    if (refreshBtn) {
+        refreshBtn.addEventListener('click', () => {
+            refreshAllWidgets();
+            showSuccessToast('Dashboard Atualizado', 'Todos os dados foram atualizados');
+        });
+    }
+    
+    if (customizeBtn) {
+        customizeBtn.addEventListener('click', toggleCustomizeMode);
+    }
+    
+    if (resetBtn) {
+        resetBtn.addEventListener('click', resetDashboardLayout);
+    }
+}
+
+function toggleCustomizeMode() {
+    const widgetsGrid = document.getElementById('widgetsGrid');
+    const customizeBtn = document.getElementById('customizeDashboard');
+    
+    if (widgetsGrid.classList.contains('customize-mode')) {
+        // Exit customize mode
+        widgetsGrid.classList.remove('customize-mode');
+        customizeBtn.textContent = '⚙️ Personalizar';
+        customizeBtn.classList.remove('bg-orange-500', 'hover:bg-orange-600');
+        customizeBtn.classList.add('bg-purple-500', 'hover:bg-purple-600');
+        saveDashboardLayout();
+        showSuccessToast('Layout Salvo', 'Personalização aplicada com sucesso');
+    } else {
+        // Enter customize mode
+        widgetsGrid.classList.add('customize-mode');
+        customizeBtn.textContent = '💾 Salvar Layout';
+        customizeBtn.classList.remove('bg-purple-500', 'hover:bg-purple-600');
+        customizeBtn.classList.add('bg-orange-500', 'hover:bg-orange-600');
+        showSuccessToast('Modo Personalização', 'Arraste os widgets para reorganizar');
+    }
+}
+
+function resetDashboardLayout() {
+    if (confirm('Tem certeza que deseja resetar o layout do dashboard?')) {
+        localStorage.removeItem('inventox_dashboard_layout');
+        dashboardState.layout = null;
+        location.reload(); // Reload to reset layout
+    }
+}
+
+// ===================================
+// 🧩 WIDGET SYSTEM
+// ===================================
+
+function initWidgetSystem() {
+    const widgets = document.querySelectorAll('.widget');
+    
+    widgets.forEach(widget => {
+        const widgetId = widget.getAttribute('data-widget');
+        dashboardState.widgets[widgetId] = {
+            element: widget,
+            visible: true,
+            position: null,
+            lastUpdate: null
+        };
+        
+        // Add widget controls
+        initWidgetControls(widget, widgetId);
+    });
+    
+    // Make widgets draggable (simplified version)
+    initWidgetDragDrop();
+}
+
+function initWidgetControls(widget, widgetId) {
+    const refreshBtn = widget.querySelector('.widget-refresh');
+    const configBtn = widget.querySelector('.widget-config');
+    
+    if (refreshBtn) {
+        refreshBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            refreshWidget(widgetId);
+        });
+    }
+    
+    if (configBtn) {
+        configBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            showWidgetConfig(widgetId);
+        });
+    }
+}
+
+function refreshWidget(widgetId) {
+    const widget = dashboardState.widgets[widgetId];
+    if (!widget) return;
+    
+    // Add loading state
+    const content = widget.element.querySelector('.widget-content');
+    const originalContent = content.innerHTML;
+    
+    content.innerHTML = `
+        <div class="flex items-center justify-center py-8">
+            <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        </div>
+    `;
+    
+    // Simulate refresh delay
+    setTimeout(() => {
+        content.innerHTML = originalContent;
+        updateWidgetData(widgetId);
+        showSuccessToast('Widget Atualizado', `${widgetId} foi atualizado`);
+    }, 1000);
+}
+
+function showWidgetConfig(widgetId) {
+    showSuccessToast('Configuração', `Configurações do widget ${widgetId} em breve`);
+}
+
+function initWidgetDragDrop() {
+    // Simplified drag and drop - in a real implementation, you'd use a library like Sortable.js
+    const widgets = document.querySelectorAll('.widget');
+    
+    widgets.forEach(widget => {
+        const header = widget.querySelector('.widget-header');
+        if (header) {
+            header.addEventListener('mousedown', (e) => {
+                if (document.getElementById('widgetsGrid').classList.contains('customize-mode')) {
+                    widget.style.opacity = '0.7';
+                    widget.style.transform = 'scale(0.95)';
+                }
+            });
+            
+            header.addEventListener('mouseup', () => {
+                widget.style.opacity = '1';
+                widget.style.transform = 'scale(1)';
+            });
+        }
+    });
+}
+
+// ===================================
+// ⏱️ REAL-TIME METRICS SYSTEM
+// ===================================
+
+function initRealTimeMetrics() {
+    updateDashboardMetrics();
+    
+    // Update every 30 seconds
+    if (dashboardState.realTimeEnabled) {
+        dashboardState.updateInterval = setInterval(() => {
+            updateDashboardMetrics();
+        }, 30000);
+    }
+}
+
+async function updateDashboardMetrics() {
+    try {
+        // Get scan history from localStorage
+        const scanHistory = JSON.parse(localStorage.getItem('inventox_scan_history') || '[]');
+        const scanCount = parseInt(localStorage.getItem('inventox_scan_count_today') || '0');
+        
+        // Calculate metrics
+        const now = new Date();
+        const todayScans = scanHistory.filter(scan => {
+            const scanDate = new Date(scan.timestamp);
+            return scanDate.toDateString() === now.toDateString();
+        });
+        
+        const scansPerHour = todayScans.length > 0 ? Math.round(todayScans.length / (now.getHours() + 1)) : 0;
+        const avgScanTime = todayScans.length > 1 ? 
+            Math.round((todayScans[0].timestamp - todayScans[todayScans.length - 1].timestamp) / todayScans.length / 1000) : 0;
+        const efficiency = Math.min(100, Math.round((scanCount / Math.max(1, scansPerHour * 8)) * 100));
+        
+        // Update metrics state
+        dashboardState.metrics = {
+            scansToday: scanCount,
+            activeSessions: await getActiveSessions(),
+            alerts: dashboardState.alerts.length,
+            efficiency: efficiency,
+            scansPerHour: scansPerHour,
+            avgScanTime: avgScanTime
+        };
+        
+        // Update UI
+        updateQuickStats();
+        updatePerformanceWidget();
+        updateRecentScansWidget();
+        
+        // Check for alerts
+        checkSmartAlerts();
+        
+    } catch (error) {
+        log.debug('Error updating dashboard metrics:', error);
+    }
+}
+
+function updateQuickStats() {
+    const elements = {
+        quickStatScans: dashboardState.metrics.scansToday,
+        quickStatSessions: dashboardState.metrics.activeSessions,
+        quickStatAlerts: dashboardState.metrics.alerts,
+        quickStatEfficiency: dashboardState.metrics.efficiency + '%'
+    };
+    
+    Object.entries(elements).forEach(([id, value]) => {
+        const element = document.getElementById(id);
+        if (element) {
+            element.textContent = value;
+        }
+    });
+}
+
+function updatePerformanceWidget() {
+    const scansPerHourEl = document.getElementById('scansPerHour');
+    const avgScanTimeEl = document.getElementById('avgScanTime');
+    const efficiencyBarEl = document.getElementById('efficiencyBar');
+    const efficiencyPercentEl = document.getElementById('efficiencyPercent');
+    
+    if (scansPerHourEl) scansPerHourEl.textContent = dashboardState.metrics.scansPerHour;
+    if (avgScanTimeEl) avgScanTimeEl.textContent = dashboardState.metrics.avgScanTime + 's';
+    if (efficiencyBarEl) efficiencyBarEl.style.width = dashboardState.metrics.efficiency + '%';
+    if (efficiencyPercentEl) efficiencyPercentEl.textContent = dashboardState.metrics.efficiency + '%';
+}
+
+function updateRecentScansWidget() {
+    const recentScansList = document.getElementById('recentScansList');
+    if (!recentScansList) return;
+    
+    const scanHistory = JSON.parse(localStorage.getItem('inventox_scan_history') || '[]');
+    const recentScans = scanHistory.slice(0, 5);
+    
+    if (recentScans.length === 0) {
+        recentScansList.innerHTML = `
+            <div class="text-center text-gray-500 py-4">
+                <p class="text-sm">Nenhum scan recente</p>
+            </div>
+        `;
+        return;
+    }
+    
+    const scansHTML = recentScans.map(scan => {
+        const time = new Date(scan.timestamp).toLocaleTimeString('pt-PT', { 
+            hour: '2-digit', 
+            minute: '2-digit' 
+        });
+        const statusIcon = scan.success ? '✅' : '❌';
+        
+        return `
+            <div class="flex items-center justify-between p-2 bg-gray-50 rounded text-sm">
+                <div class="flex items-center space-x-2">
+                    <span>${statusIcon}</span>
+                    <span class="truncate">${scan.itemName}</span>
+                </div>
+                <span class="text-xs text-gray-500">${time}</span>
+            </div>
+        `;
+    }).join('');
+    
+    recentScansList.innerHTML = scansHTML;
+}
+
+async function getActiveSessions() {
+    try {
+        const response = await fetch(`${API_BASE}/sessions.php`, {
+            method: 'GET',
+            credentials: 'include'
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            if (data.success && data.sessions) {
+                return data.sessions.filter(session => session.status === 'open').length;
+            }
+        }
+    } catch (error) {
+        log.debug('Error fetching active sessions:', error);
+    }
+    
+    return 0;
+}
+
+// ===================================
+// 🚨 SMART ALERTS SYSTEM
+// ===================================
+
+function initSmartAlerts() {
+    dashboardState.alerts = JSON.parse(localStorage.getItem('inventox_dashboard_alerts') || '[]');
+    
+    const dismissAllBtn = document.getElementById('dismissAllAlerts');
+    if (dismissAllBtn) {
+        dismissAllBtn.addEventListener('click', dismissAllAlerts);
+    }
+    
+    renderAlerts();
+}
+
+function checkSmartAlerts() {
+    const newAlerts = [];
+    
+    // Low efficiency alert
+    if (dashboardState.metrics.efficiency < 50 && dashboardState.metrics.scansToday > 10) {
+        newAlerts.push({
+            id: 'low-efficiency',
+            type: 'warning',
+            title: 'Eficiência Baixa',
+            message: `Eficiência atual: ${dashboardState.metrics.efficiency}%. Considere otimizar o processo.`,
+            timestamp: Date.now()
+        });
+    }
+    
+    // High scan rate alert
+    if (dashboardState.metrics.scansPerHour > 100) {
+        newAlerts.push({
+            id: 'high-scan-rate',
+            type: 'success',
+            title: 'Alta Produtividade',
+            message: `Excelente! ${dashboardState.metrics.scansPerHour} scans/hora.`,
+            timestamp: Date.now()
+        });
+    }
+    
+    // No activity alert
+    if (dashboardState.metrics.scansToday === 0 && new Date().getHours() > 9) {
+        newAlerts.push({
+            id: 'no-activity',
+            type: 'info',
+            title: 'Sem Atividade',
+            message: 'Nenhum scan registado hoje. Inicie o trabalho de inventário.',
+            timestamp: Date.now()
+        });
+    }
+    
+    // Add new alerts (avoid duplicates)
+    newAlerts.forEach(alert => {
+        if (!dashboardState.alerts.find(a => a.id === alert.id)) {
+            dashboardState.alerts.push(alert);
+        }
+    });
+    
+    // Remove old alerts (older than 1 hour)
+    const oneHourAgo = Date.now() - (60 * 60 * 1000);
+    dashboardState.alerts = dashboardState.alerts.filter(alert => alert.timestamp > oneHourAgo);
+    
+    // Save and render
+    localStorage.setItem('inventox_dashboard_alerts', JSON.stringify(dashboardState.alerts));
+    renderAlerts();
+}
+
+function renderAlerts() {
+    const alertsPanel = document.getElementById('smartAlerts');
+    const alertsList = document.getElementById('alertsList');
+    
+    if (!alertsPanel || !alertsList) return;
+    
+    if (dashboardState.alerts.length === 0) {
+        alertsPanel.classList.add('hidden');
+        return;
+    }
+    
+    alertsPanel.classList.remove('hidden');
+    
+    const alertsHTML = dashboardState.alerts.map(alert => {
+        const typeColors = {
+            success: 'bg-green-100 border-green-300 text-green-800',
+            warning: 'bg-yellow-100 border-yellow-300 text-yellow-800',
+            error: 'bg-red-100 border-red-300 text-red-800',
+            info: 'bg-blue-100 border-blue-300 text-blue-800'
+        };
+        
+        const typeIcons = {
+            success: '✅',
+            warning: '⚠️',
+            error: '❌',
+            info: 'ℹ️'
+        };
+        
+        return `
+            <div class="flex items-center justify-between p-3 rounded border ${typeColors[alert.type]}">
+                <div class="flex items-center space-x-3">
+                    <span class="text-lg">${typeIcons[alert.type]}</span>
+                    <div>
+                        <div class="font-semibold">${alert.title}</div>
+                        <div class="text-sm opacity-90">${alert.message}</div>
+                    </div>
+                </div>
+                <button onclick="dismissAlert('${alert.id}')" class="text-sm opacity-70 hover:opacity-100">✕</button>
+            </div>
+        `;
+    }).join('');
+    
+    alertsList.innerHTML = alertsHTML;
+}
+
+function dismissAlert(alertId) {
+    dashboardState.alerts = dashboardState.alerts.filter(alert => alert.id !== alertId);
+    localStorage.setItem('inventox_dashboard_alerts', JSON.stringify(dashboardState.alerts));
+    renderAlerts();
+}
+
+function dismissAllAlerts() {
+    dashboardState.alerts = [];
+    localStorage.setItem('inventox_dashboard_alerts', '[]');
+    renderAlerts();
+    showSuccessToast('Alertas Limpos', 'Todos os alertas foram dispensados');
+}
+
+// ===================================
+// 💾 LAYOUT PERSISTENCE
+// ===================================
+
+function saveDashboardLayout() {
+    const widgetsGrid = document.getElementById('widgetsGrid');
+    const widgets = Array.from(widgetsGrid.querySelectorAll('.widget'));
+    
+    const layout = widgets.map((widget, index) => ({
+        id: widget.getAttribute('data-widget'),
+        order: index,
+        visible: !widget.classList.contains('hidden')
+    }));
+    
+    dashboardState.layout = layout;
+    localStorage.setItem('inventox_dashboard_layout', JSON.stringify(layout));
+}
+
+function loadDashboardLayout() {
+    if (!dashboardState.layout) return;
+    
+    const widgetsGrid = document.getElementById('widgetsGrid');
+    const widgets = Array.from(widgetsGrid.querySelectorAll('.widget'));
+    
+    // Sort widgets according to saved layout
+    dashboardState.layout
+        .sort((a, b) => a.order - b.order)
+        .forEach(layoutItem => {
+            const widget = widgets.find(w => w.getAttribute('data-widget') === layoutItem.id);
+            if (widget) {
+                widgetsGrid.appendChild(widget);
+                if (!layoutItem.visible) {
+                    widget.classList.add('hidden');
+                }
+            }
+        });
+}
+
+// ===================================
+// 🔄 WIDGET DATA UPDATES
+// ===================================
+
+function updateWidgetData(widgetId) {
+    switch (widgetId) {
+        case 'kpi-metrics':
+            updateKPIMetrics();
+            break;
+        case 'activity-chart':
+            updateActivityChart();
+            break;
+        case 'low-stock':
+            updateLowStockWidget();
+            break;
+        case 'recent-scans':
+            updateRecentScansWidget();
+            break;
+        case 'top-categories':
+            updateTopCategoriesWidget();
+            break;
+        case 'performance':
+            updatePerformanceWidget();
+            break;
+    }
+}
+
+async function updateKPIMetrics() {
+    // This would typically fetch from API
+    // For now, using mock data
+    const elements = {
+        statTotalItems: Math.floor(Math.random() * 1000) + 500,
+        statLowStock: Math.floor(Math.random() * 20) + 5,
+        statOpenSessions: Math.floor(Math.random() * 5) + 1,
+        statInventoryValue: (Math.random() * 100000 + 50000).toFixed(0) + ' CVE'
+    };
+    
+    Object.entries(elements).forEach(([id, value]) => {
+        const element = document.getElementById(id);
+        if (element) {
+            element.textContent = value;
+        }
+    });
+}
+
+function updateActivityChart() {
+    // Update the simple bar chart with random data
+    const bars = document.querySelectorAll('[data-widget="activity-chart"] .bg-blue-500');
+    bars.forEach(bar => {
+        const height = Math.random() * 80 + 20;
+        bar.style.height = height + '%';
+    });
+}
+
+async function updateLowStockWidget() {
+    const lowStockList = document.getElementById('lowStockList');
+    const lowStockCount = document.getElementById('lowStockCount');
+    
+    if (!lowStockList || !lowStockCount) return;
+    
+    // Mock low stock items
+    const mockLowStock = [
+        { name: 'Produto A', stock: 2, min: 10 },
+        { name: 'Produto B', stock: 1, min: 5 },
+        { name: 'Produto C', stock: 0, min: 8 }
+    ];
+    
+    lowStockCount.textContent = mockLowStock.length;
+    
+    const itemsHTML = mockLowStock.map(item => `
+        <div class="flex items-center justify-between p-2 bg-red-50 rounded border border-red-200">
+            <div>
+                <div class="font-medium text-sm">${item.name}</div>
+                <div class="text-xs text-gray-500">Stock: ${item.stock} / Min: ${item.min}</div>
+            </div>
+            <div class="text-red-600 font-bold">${item.stock}</div>
+        </div>
+    `).join('');
+    
+    lowStockList.innerHTML = itemsHTML;
+}
+
+async function updateTopCategoriesWidget() {
+    const topCategoriesList = document.getElementById('topCategoriesList');
+    if (!topCategoriesList) return;
+    
+    // Mock categories data
+    const mockCategories = [
+        { name: 'Eletrónicos', count: 45, percentage: 35 },
+        { name: 'Vestuário', count: 32, percentage: 25 },
+        { name: 'Casa & Jardim', count: 28, percentage: 22 },
+        { name: 'Desporto', count: 15, percentage: 12 },
+        { name: 'Livros', count: 8, percentage: 6 }
+    ];
+    
+    const categoriesHTML = mockCategories.map(category => `
+        <div class="flex items-center justify-between p-2 bg-gray-50 rounded">
+            <div class="flex-1">
+                <div class="font-medium text-sm">${category.name}</div>
+                <div class="w-full bg-gray-200 rounded-full h-2 mt-1">
+                    <div class="bg-blue-500 h-2 rounded-full" style="width: ${category.percentage}%"></div>
+                </div>
+            </div>
+            <div class="ml-3 text-right">
+                <div class="font-bold text-sm">${category.count}</div>
+                <div class="text-xs text-gray-500">${category.percentage}%</div>
+            </div>
+        </div>
+    `).join('');
+    
+    topCategoriesList.innerHTML = categoriesHTML;
+}
+
+function refreshAllWidgets() {
+    Object.keys(dashboardState.widgets).forEach(widgetId => {
+        updateWidgetData(widgetId);
+    });
+    
+    updateDashboardMetrics();
+}
+
+// Make dismissAlert available globally
+window.dismissAlert = dismissAlert;
+
+// ===================================
+// 🎯 INITIALIZE INTERACTIVE DASHBOARD
+// ===================================
+
+// Initialize when dashboard tab becomes active
+document.addEventListener('DOMContentLoaded', () => {
+    setTimeout(() => {
+        if (document.getElementById('dashboardTab') && !document.getElementById('dashboardTab').classList.contains('hidden')) {
+            initInteractiveDashboard();
+        }
+    }, 300);
+});
 
