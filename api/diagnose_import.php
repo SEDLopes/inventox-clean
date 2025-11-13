@@ -42,16 +42,16 @@ try {
     $noName = $db->query("SELECT COUNT(*) FROM items WHERE name IS NULL OR name = ''")->fetchColumn();
     
     // Pesquisar "tubo pvc" como exemplo (múltiplas variações)
-    $searchTerms = ['%tubo%pvc%', '%tubo pvc%', '%TUBO%PVC%', '%tubo%', '%pvc%'];
+    $searchTerms = ['%tubo%pvc%', '%tubo pvc%', '%tubo%', '%pvc%'];
     $allSearchResults = [];
+    $searchExample = $db->prepare("
+        SELECT DISTINCT id, barcode, name, description
+        FROM items 
+        WHERE (LOWER(name) LIKE LOWER(?) OR LOWER(description) LIKE LOWER(?) OR barcode LIKE ?)
+        LIMIT 20
+    ");
     foreach ($searchTerms as $term) {
-        $searchExample = $db->prepare("
-            SELECT DISTINCT id, barcode, name, description
-            FROM items 
-            WHERE (LOWER(name) LIKE LOWER(:search) OR LOWER(description) LIKE LOWER(:search) OR barcode LIKE :search)
-            LIMIT 20
-        ");
-        $searchExample->execute(['search' => $term]);
+        $searchExample->execute([$term, $term, $term]);
         $results = $searchExample->fetchAll(PDO::FETCH_ASSOC);
         $allSearchResults = array_merge($allSearchResults, $results);
     }
